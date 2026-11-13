@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block topbar_title %}Detalle Cliente #{{ c.interno }}{% endblock %}
+{% block content %}
+<div class="card" style="max-width:700px; margin:0 auto;">
+  <div class="card-header">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Datos del Cliente</span>
+    <a href="/clientes" class="btn btn-secondary btn-sm">← Volver</a>
+  </div>
+  <div class="card-body" style="font-size:15px;">
+    <div style="font-size:18px; font-weight:700; color:#C0272D; margin-bottom:10px;">{{ c.nombre }}</div>
+    <div><b>Cargado por:</b> {{ c.cargado_por.nombre_completo or c.cargado_por.username if c.cargado_por else 'Sin registro' }}</div>
+    <div><b>Teléfono:</b> {{ c.telefono or '-' }}</div>
+    <div><b>Email:</b> {{ c.email or '-' }}</div>
+    <div><b>Domicilio:</b> {{ c.domicilio or '-' }}</div>
+    <div><b>Localidad:</b> {{ c.localidad or '-' }}</div>
+    <div><b>Provincia:</b> {{ c.provincia or '-' }}</div>
+    <div><b>Estado:</b> {{ c.estado }}</div>
+    {% if c.estado == 'NO COMPRA' %}<div style="margin-top:6px; color:#991B1B;"><b>Motivo:</b> {{ c.motivo_no_compra or 'Sin motivo registrado' }}</div>{% endif %}
+    {% if c.estado == 'COMPRA' %}<div style="margin-top:6px; color:#15803D;"><b>Vehículo comprado:</b> {% if c.vehiculo_comprado %}{{ c.vehiculo_comprado.marca }} {{ c.vehiculo_comprado.version }} · {{ c.vehiculo_comprado.dominio }}{% else %}No especificado{% endif %}</div>{% endif %}
+    <div><b>Próximo contacto:</b> {{ c.proximo_contacto or 'Sin fecha' }}</div>
+    <div><b>Vehículo de interés:</b> <span style="color:#2563EB; font-weight:600;">{{ c.interes or 'Sin especificar' }}</span></div>
+    {% if c.tiene_usado == 'Si' %}
+    <div style="margin-top:8px; background:#FEF3C7; border-radius:5px; padding:6px 10px; font-size:14px; color:#92400E;">
+      🔄 Tiene usado: {{ c.usado_detalle or 'Sin detalle' }}
+    </div>
+    {% endif %}
+    <div style="margin-top:12px; font-size:14px; color:#555; border-top:1px solid #F0F0F0; padding-top:8px; line-height:1.5;">
+      <b>Comentarios:</b> {{ c.notas|length }} registrados
+    </div>
+    <div style="margin-top:18px; display:flex; gap:10px;">
+      <a href="https://wa.me/54{{ c.telefono }}" target="_blank" class="btn btn-success">WhatsApp</a>
+      <a href="/clientes/editar/{{ c.id }}" class="btn btn-secondary">Editar</a>
+      {% if c.estado != 'COMPRA' %}<a href="/clientes/atender/{{ c.id }}" class="btn btn-primary">Seguimiento</a>{% else %}<span class="badge badge-verde" style="align-self:center;">Gestión cerrada: cliente comprador</span>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

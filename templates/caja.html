@@ -1,0 +1,168 @@
+{% extends "layout.html" %}
+
+{% block topbar_title %}Control de Caja{% endblock %}
+
+{% block topbar_actions %}
+<span style="font-size:12px; color:#777;">{{ now.strftime('%d/%m/%Y') if now else '' }}</span>
+{% endblock %}
+
+{% block content %}
+<style>
+  .cash-page { --gold:#B28A3B; --gold-soft:#F7F1E5; --ink:#171717; }
+  .cash-hero { background:linear-gradient(135deg,#171717,#292929); color:white; padding:24px 28px; border-radius:12px; margin-bottom:18px; display:flex; justify-content:space-between; gap:20px; align-items:center; }
+  .cash-brand { font-family:'Rajdhani',sans-serif; letter-spacing:.08em; font-size:23px; font-weight:700; }
+  .cash-brand small { display:block; color:#CBB788; font-family:Inter,sans-serif; font-size:11px; letter-spacing:.04em; margin-top:3px; }
+  .cash-status { display:flex; align-items:center; gap:10px; font-size:13px; }
+  .cash-dot { width:10px; height:10px; border-radius:50%; background:#22C55E; }
+  .cash-dot.closed { background:#999; }
+  .cash-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+  .cash-kpi { background:white; border:1px solid #E7E2D8; border-top:3px solid var(--gold); border-radius:8px; padding:16px; }
+  .cash-kpi label { color:#777; font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+  .cash-kpi strong { display:block; font-family:'Rajdhani',sans-serif; font-size:25px; margin-top:5px; color:#222; }
+  .cash-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px; }
+  .cash-panel { background:white; border:1px solid #E7E2D8; border-radius:8px; overflow:hidden; }
+  .cash-panel h3 { margin:0; padding:14px 18px; border-bottom:1px solid #EEE9DF; font-size:16px; }
+  .cash-panel-body { padding:18px; }
+  .cash-form { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .cash-form .wide { grid-column:span 2; }
+  .cash-form label { display:block; font-size:11px; color:#666; text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px; font-weight:600; }
+  .cash-form input,.cash-form select,.cash-form textarea { width:100%; padding:9px 10px; border:1px solid #D9D4CA; border-radius:6px; font:inherit; font-size:13px; background:#FFF; }
+  .cash-form textarea { resize:vertical; min-height:62px; }
+  .cash-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .gold-btn { background:var(--gold); color:white; }
+  .dark-btn { background:#222; color:white; }
+  .summary-list { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .summary-item { background:#FAF9F6; border:1px solid #EEE9DF; padding:11px; border-radius:6px; }
+  .summary-item b { display:block; font-size:12px; margin-bottom:5px; }
+  .summary-item span { font-size:12px; color:#666; display:block; }
+  .summary-item strong { color:#222; }
+  .cash-table-wrap { overflow:auto; }
+  .cash-table { width:100%; border-collapse:collapse; font-size:12px; min-width:920px; }
+  .cash-table th { background:#F7F5F0; color:#666; text-align:left; padding:10px; font-size:10px; text-transform:uppercase; letter-spacing:.06em; }
+  .cash-table td { padding:10px; border-bottom:1px solid #F0EEE9; vertical-align:top; }
+  .income { color:#16803C; font-weight:700; } .expense { color:#B42318; font-weight:700; }
+  .annulled { opacity:.55; text-decoration:line-through; }
+  .filter-bar { display:flex; flex-wrap:wrap; gap:8px; align-items:end; }
+  .filter-bar > div { min-width:125px; flex:1; }
+  .filter-bar label { display:block; font-size:10px; text-transform:uppercase; color:#777; margin-bottom:4px; }
+  .filter-bar input,.filter-bar select { width:100%; padding:8px; border:1px solid #D9D4CA; border-radius:6px; font-size:12px; }
+  @media (max-width:900px) { .cash-kpis { grid-template-columns:repeat(2,1fr); } .cash-grid { grid-template-columns:1fr; } }
+  @media (max-width:560px) { .cash-hero { display:block; } .cash-status { margin-top:14px; } .cash-kpis { grid-template-columns:1fr; } .cash-form { grid-template-columns:1fr; } .cash-form .wide { grid-column:auto; } }
+</style>
+
+<div class="cash-page">
+  <div class="cash-hero">
+    <div><div class="cash-brand">Monteros Automotores</div><div style="font-size:12px;color:#BBB;margin-top:16px;">CONTROL DE CAJA</div></div>
+    <div class="cash-status"><span class="cash-dot {{ 'closed' if caja.estado != 'abierta' else '' }}"></span><strong>CAJA {{ 'ABIERTA' if caja.estado == 'abierta' else 'CERRADA' }}</strong>{% if caja.usuario_apertura %}<span style="color:#BBB;">· {{ caja.usuario_apertura.nombre_completo or caja.usuario_apertura.username }}</span>{% endif %}</div>
+  </div>
+
+  <div class="cash-kpis">
+    <div class="cash-kpi"><label>Saldo actual</label><strong>$ {{ "{:,.2f}".format(saldo_actual) }}</strong></div>
+    <div class="cash-kpi"><label>Ingresos del día</label><strong class="income">$ {{ "{:,.2f}".format(ingresos_hoy) }}</strong></div>
+    <div class="cash-kpi"><label>Egresos del día</label><strong class="expense">$ {{ "{:,.2f}".format(egresos_hoy) }}</strong></div>
+    <div class="cash-kpi"><label>Resultado del día</label><strong>$ {{ "{:,.2f}".format(resultado_hoy) }}</strong></div>
+  </div>
+  <div class="cash-kpis">
+    <div class="cash-kpi"><label>Ingresos del mes</label><strong class="income">$ {{ "{:,.2f}".format(ingresos_mes) }}</strong></div>
+    <div class="cash-kpi"><label>Egresos del mes</label><strong class="expense">$ {{ "{:,.2f}".format(egresos_mes) }}</strong></div>
+    <div class="cash-kpi"><label>Resultado del mes</label><strong>$ {{ "{:,.2f}".format(resultado_mes) }}</strong></div>
+    <div class="cash-kpi"><label>Saldo inicial</label><strong>$ {{ "{:,.2f}".format(caja.saldo_inicial) }}</strong></div>
+  </div>
+
+  <section class="cash-panel" style="margin-bottom:18px;">
+    <h3>Operaciones finalizadas · Facturación y ganancia</h3>
+    <div class="cash-panel-body">
+      <p style="font-size:12px;color:#777;margin:0 0 14px;">
+        El período Desde/Hasta de los filtros aplica también a la fecha de finalización.
+        En operaciones antiguas se usa la fecha original si no hay fecha de cierre guardada.
+        La ganancia se estima como facturación menos costo de compra y gastos registrados del vehículo.
+      </p>
+      <div class="summary-list" style="margin-bottom:16px;">
+        <div class="summary-item"><b>Facturación del período</b><strong class="income">$ {{ "{:,.2f}".format(total_facturacion) }}</strong></div>
+        <div class="summary-item"><b>Ganancia estimada del período</b><strong class="income">$ {{ "{:,.2f}".format(ganancia_total) }}</strong></div>
+      </div>
+      <div class="cash-table-wrap">
+        <table class="cash-table">
+          <thead><tr><th>Fecha finalización</th><th>Operación</th><th>Cliente</th><th>Vehículo</th><th>Facturación</th><th>Costo compra</th><th>Gastos</th><th>Ganancia estimada</th></tr></thead>
+          <tbody>
+            {% for item in informe_operaciones %}
+            <tr>
+              <td>{{ item.fecha.strftime('%d/%m/%Y %H:%M') if item.fecha else '—' }}</td>
+              <td><a href="{{ url_for('ver_venta', venta_id=item.venta.id) }}">#{{ item.venta.numero_operacion }}</a></td>
+              <td>{{ item.venta.cliente.nombre if item.venta.cliente else '—' }}</td>
+              <td>{% if item.venta.vehiculo %}{{ item.venta.vehiculo.marca }} {{ item.venta.vehiculo.version }} · {{ item.venta.vehiculo.dominio }}{% else %}—{% endif %}</td>
+              <td class="income">$ {{ "{:,.2f}".format(item.facturacion) }}</td>
+              <td>$ {{ "{:,.2f}".format(item.costo_vehiculo) }}</td>
+              <td>$ {{ "{:,.2f}".format(item.gastos_vehiculo) }}</td>
+              <td class="{{ 'income' if item.ganancia >= 0 else 'expense' }}">$ {{ "{:,.2f}".format(item.ganancia) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" style="text-align:center;padding:20px;color:#888;">No hay operaciones finalizadas para el período seleccionado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="cash-grid">
+    <section class="cash-panel">
+      <h3>Apertura de caja</h3>
+      <div class="cash-panel-body">
+        {% if caja.estado == 'abierta' %}<p style="color:#16803C;font-weight:600;">La caja está abierta desde {{ caja.fecha_apertura.strftime('%d/%m/%Y %H:%M') }}.</p>{% else %}
+        <form method="POST" action="{{ url_for('abrir_caja') }}" class="cash-form">
+          <div><label>Saldo inicial</label><input name="saldo_inicial" type="number" min="0" step="0.01" value="0" required></div>
+          <div><label>Caja</label><input value="{{ caja.nombre }}" readonly></div>
+          <div class="wide"><label>Observaciones</label><textarea name="observaciones"></textarea></div>
+          <div class="wide cash-actions"><button class="btn gold-btn" type="submit">Abrir caja</button></div>
+        </form>{% endif %}
+      </div>
+    </section>
+    <section class="cash-panel">
+      <h3>Nuevo movimiento</h3>
+      <div class="cash-panel-body">
+        {% if caja.estado == 'abierta' %}
+        <form method="POST" action="{{ url_for('registrar_movimiento_caja') }}" class="cash-form">
+          <div><label>Tipo</label><select name="tipo" id="tipoMovimiento" required onchange="actualizarCategorias()"><option value="ingreso">Ingreso</option><option value="egreso">Egreso</option></select></div>
+          <div><label>Categoría</label><select name="categoria" id="categoriaMovimiento" required></select></div>
+          <div class="wide"><label>Concepto</label><input name="concepto" required maxlength="200"></div>
+          <div><label>Importe</label><input name="monto" type="number" min="0.01" step="0.01" required></div>
+          <div><label>Medio de pago</label><select name="medio_pago" required>{% for medio in medios %}<option>{{ medio }}</option>{% endfor %}</select></div>
+          <div><label>Cuenta</label><select name="cuenta">{% for cuenta in cuentas %}<option>{{ cuenta }}</option>{% endfor %}</select></div>
+          <div><label>Cliente</label><select name="cliente_id"><option value="">Sin cliente</option>{% for cliente in clientes %}<option value="{{ cliente.id }}">{{ cliente.nombre }}{% if cliente.dni %} · {{ cliente.dni }}{% endif %}</option>{% endfor %}</select></div>
+          <div><label>Vehículo</label><select name="vehiculo_id"><option value="">Sin vehículo</option>{% for vehiculo in vehiculos %}<option value="{{ vehiculo.id }}">#{{ vehiculo.interno }} · {{ vehiculo.marca }} {{ vehiculo.version }} · {{ vehiculo.dominio }}</option>{% endfor %}</select></div>
+          <div><label>Proveedor</label><input name="proveedor"></div><div><label>Comprobante</label><input name="comprobante"></div>
+          <div class="wide"><label>Observaciones</label><textarea name="observaciones"></textarea></div>
+          <div class="wide cash-actions"><button class="btn gold-btn" type="submit">Guardar movimiento</button></div>
+        </form>
+        {% else %}<p style="color:#777;">Abrí la caja para registrar movimientos.</p>{% endif %}
+      </div>
+    </section>
+  </div>
+
+  <div class="cash-grid">
+    <section class="cash-panel"><h3>Resumen por medio de pago</h3><div class="cash-panel-body summary-list">{% for medio, valores in por_medio.items() %}<div class="summary-item"><b>{{ medio }}</b><span>Ingresos: <strong class="income">$ {{ "{:,.2f}".format(valores[0]) }}</strong></span><span>Egresos: <strong class="expense">$ {{ "{:,.2f}".format(valores[1]) }}</strong></span><span>Saldo: <strong>$ {{ "{:,.2f}".format(valores[2]) }}</strong></span></div>{% endfor %}</div></section>
+    <section class="cash-panel"><h3>Resumen por cuenta</h3><div class="cash-panel-body summary-list">{% for cuenta, saldo in por_cuenta.items() %}<div class="summary-item"><b>{{ cuenta }}</b><strong>$ {{ "{:,.2f}".format(saldo) }}</strong></div>{% endfor %}<div class="summary-item" style="grid-column:span 2;background:#171717;color:white;"><b>SALDO TOTAL GENERAL</b><strong style="color:#D7B96D;">$ {{ "{:,.2f}".format(saldo_actual) }}</strong></div></div></section>
+  </div>
+
+  <section class="cash-panel" style="margin-bottom:18px;"><h3>Filtros y movimientos</h3><div class="cash-panel-body">
+    <form method="GET" class="filter-bar"><div><label>Desde</label><input type="date" name="desde" value="{{ filtros.get('desde','') }}"></div><div><label>Hasta</label><input type="date" name="hasta" value="{{ filtros.get('hasta','') }}"></div><div><label>Tipo</label><select name="tipo"><option value="">Todos</option><option value="ingreso" {{ 'selected' if filtros.get('tipo') == 'ingreso' }}>Ingresos</option><option value="egreso" {{ 'selected' if filtros.get('tipo') == 'egreso' }}>Egresos</option></select></div><div><label>Medio</label><select name="medio_pago"><option value="">Todos</option>{% for medio in medios %}<option {{ 'selected' if filtros.get('medio_pago') == medio }}>{{ medio }}</option>{% endfor %}</select></div><div><label>Cuenta</label><select name="cuenta"><option value="">Todas</option>{% for cuenta in cuentas %}<option {{ 'selected' if filtros.get('cuenta') == cuenta }}>{{ cuenta }}</option>{% endfor %}</select></div><div><label>Buscar</label><input name="buscar" value="{{ filtros.get('buscar','') }}" placeholder="Concepto, comprobante..."></div><button class="btn dark-btn" type="submit">Buscar</button><a class="btn" href="{{ url_for('caja') }}">Limpiar</a></form>
+    <div class="cash-table-wrap" style="margin-top:18px;"><table class="cash-table"><thead><tr><th>Fecha/hora</th><th>Tipo</th><th>Concepto</th><th>Cliente/proveedor</th><th>Medio/cuenta</th><th>Importe</th><th>Usuario</th><th>Estado</th><th></th></tr></thead><tbody>{% for movimiento in movimientos %}<tr class="{{ 'annulled' if movimiento.estado == 'anulado' else '' }}"><td>{{ movimiento.fecha.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ movimiento.tipo|capitalize }}<br><small>{{ movimiento.categoria }}</small></td><td>{{ movimiento.concepto }}{% if movimiento.comprobante %}<br><small>Comp. {{ movimiento.comprobante }}</small>{% endif %}</td><td>{{ movimiento.cliente.nombre if movimiento.cliente else (movimiento.proveedor or '—') }}</td><td>{{ movimiento.medio_pago }}<br><small>{{ movimiento.cuenta }}</small></td><td class="{{ 'income' if movimiento.tipo == 'ingreso' else 'expense' }}">{{ '+' if movimiento.tipo == 'ingreso' else '-' }} $ {{ "{:,.2f}".format(movimiento.monto) }}</td><td>{{ movimiento.usuario.nombre_completo or movimiento.usuario.username }}</td><td>{{ movimiento.estado|capitalize }}</td><td><a class="btn" style="padding:4px 6px;font-size:10px;" href="{{ url_for('ver_movimiento_caja', movimiento_id=movimiento.id) }}">Ver</a>{% if movimiento.estado == 'activo' and session.get('rol') == 'admin' %}<form method="POST" action="{{ url_for('anular_movimiento_caja', movimiento_id=movimiento.id) }}"><input name="motivo" placeholder="Motivo" required style="width:90px;padding:4px;font-size:11px;"><button class="btn" style="padding:4px 6px;font-size:10px;" onclick="return confirm('¿Anular movimiento?')">Anular</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="9" style="text-align:center;padding:24px;color:#888;">No hay movimientos para los filtros seleccionados.</td></tr>{% endfor %}</tbody></table></div>
+  </div></section>
+
+  <section class="cash-panel" style="margin-bottom:18px;"><h3>Transferir dinero entre cuentas</h3><div class="cash-panel-body">
+    {% if caja.estado == 'abierta' %}<form method="POST" action="{{ url_for('transferir_caja') }}" class="cash-form"><div><label>Cuenta de origen</label><select name="origen">{% for cuenta in cuentas %}<option>{{ cuenta }}</option>{% endfor %}</select></div><div><label>Cuenta de destino</label><select name="destino">{% for cuenta in cuentas %}<option>{{ cuenta }}</option>{% endfor %}</select></div><div><label>Importe</label><input name="monto" type="number" min="0.01" step="0.01" required></div><div><label>Concepto</label><input name="concepto" value="Transferencia entre cuentas"></div><div class="wide cash-actions"><button class="btn dark-btn" type="submit">Transferir dinero</button></div></form>{% else %}<p style="color:#777;">Abrí la caja para transferir fondos.</p>{% endif %}
+  </div></section>
+
+  <section class="cash-panel" style="margin-bottom:18px;"><h3>Cierre de caja</h3><div class="cash-panel-body">{% if caja.estado == 'abierta' %}<form method="POST" action="{{ url_for('cerrar_caja') }}" class="cash-form"><div><label>Saldo esperado</label><input value="$ {{ "{:,.2f}".format(saldo_actual) }}" readonly></div><div><label>Saldo real contado</label><input name="saldo_real" type="number" min="0" step="0.01" required></div><div class="wide"><label>Observaciones (obligatoria si hay diferencia)</label><textarea name="observaciones"></textarea></div><div class="wide cash-actions"><button class="btn dark-btn" type="submit" onclick="return confirm('¿Confirmar cierre de caja?')">Cerrar caja</button></div></form>{% else %}<p style="color:#777;">La caja está cerrada. Los cierres anteriores se conservan en el historial.</p>{% endif %}</div></section>
+
+  <section class="cash-panel"><h3>Historial de cierres</h3><div class="cash-table-wrap"><table class="cash-table"><thead><tr><th>Fecha</th><th>Usuario</th><th>Inicial</th><th>Ingresos</th><th>Egresos</th><th>Esperado</th><th>Real</th><th>Diferencia</th></tr></thead><tbody>{% for cierre in cierres %}<tr><td>{{ cierre.fecha.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ cierre.usuario.nombre_completo or cierre.usuario.username }}</td><td>$ {{ "{:,.2f}".format(cierre.saldo_inicial) }}</td><td class="income">$ {{ "{:,.2f}".format(cierre.total_ingresos) }}</td><td class="expense">$ {{ "{:,.2f}".format(cierre.total_egresos) }}</td><td>$ {{ "{:,.2f}".format(cierre.saldo_esperado) }}</td><td>$ {{ "{:,.2f}".format(cierre.saldo_real) }}</td><td class="{{ 'income' if cierre.diferencia > 0 else 'expense' if cierre.diferencia < 0 else '' }}">$ {{ "{:,.2f}".format(cierre.diferencia) }}</td></tr>{% else %}<tr><td colspan="8" style="padding:20px;color:#888;text-align:center;">Sin cierres registrados.</td></tr>{% endfor %}</tbody></table></div></section>
+</div>
+<script>
+const categoriasIngreso = {{ categorias_ingreso|tojson }};
+const categoriasEgreso = {
+  { categorias_egreso|tojson }};
+function actualizarCategorias() { const select=document.getElementById('categoriaMovimiento'); const values=document.getElementById('tipoMovimiento').value === 'ingreso' ? categoriasIngreso : categoriasEgreso; select.innerHTML=''; values.forEach(value => { const option=document.createElement('option'); option.value=value; option.textContent=value; select.appendChild(option); }); }
+actualizarCategorias();
+</script>
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends "layout.html" %}
+{% block topbar_title %}Editar Vehículo #{{ v.interno }}{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:900px; margin:0 auto;">
+  <div class="card-header">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">
+      Editando: {{ v.marca }} {{ v.version }} — {{ v.dominio }}
+    </span>
+    <a href="/vehiculos" class="btn btn-secondary btn-sm">← Volver</a>
+  </div>
+  <div class="card-body">
+    <form method="POST" enctype="multipart/form-data" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px;">
+
+      <div>
+        <label class="input-label">Dominio</label>
+        <input name="dominio" value="{{ v.dominio }}" class="input-field" required>
+      </div>
+      <div>
+        <label class="input-label">Tipo</label>
+        <select name="tipo" class="input-field">
+          {% for t in ['Auto','Moto','Camioneta','Camión','Utilitario'] %}
+          <option {{ 'selected' if v.tipo == t }}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="input-label">Marca</label>
+        <input name="marca" value="{{ v.marca }}" class="input-field" required>
+      </div>
+      <div>
+        <label class="input-label">Versión</label>
+        <input name="version" value="{{ v.version }}" class="input-field">
+      </div>
+
+      <div>
+        <label class="input-label">Origen</label>
+        <select name="origen" id="origenVehiculoEditar" class="input-field" required>
+          <option value="propio" {{ 'selected' if (v.origen or 'propio') == 'propio' }}>Propio</option>
+          <option value="consignacion" {{ 'selected' if (v.origen or 'propio') == 'consignacion' }}>Consignación</option>
+        </select>
+      </div>
+      <div>
+        <label class="input-label">Año</label>
+        <input name="año" type="number" value="{{ v.año }}" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Kilómetros</label>
+        <input name="km" type="number" value="{{ v.km }}" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Color</label>
+        <input name="color" value="{{ v.color }}" class="input-field">
+      </div>
+
+      <div>
+        <label class="input-label">N° Chasis</label>
+        <input name="chasis" value="{{ v.chasis }}" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">N° Motor</label>
+        <input name="motor" value="{{ v.motor }}" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Precio Compra $</label>
+        <input name="compra" type="number" value="{{ v.precio_compra }}" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Precio Venta $</label>
+        <input name="venta" type="number" value="{{ v.precio_venta }}" class="input-field" required>
+      </div>
+
+      <div id="tituloTitularConsignacionEditar" style="grid-column:span 4; display:{{ 'block' if (v.origen or 'propio') == 'consignacion' else 'none' }};">
+        <h4 style="margin:0 0 8px; font-size:14px; color:#333;">Datos del titular en consignación</h4>
+      </div>
+
+      <div id="camposTitularConsignacionEditar" style="grid-column:span 4; display:{{ 'grid' if (v.origen or 'propio') == 'consignacion' else 'none' }}; grid-template-columns:repeat(4,1fr); gap:14px; width:100%;">
+        <div>
+          <label class="input-label">Nombre y apellido</label>
+          <input name="titular_nombre_apellido" value="{{ v.titular_nombre_apellido or '' }}" class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Teléfono</label>
+          <input name="titular_telefono" value="{{ v.titular_telefono or '' }}" class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Localidad</label>
+          <input name="titular_localidad" value="{{ v.titular_localidad or '' }}" class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Dirección</label>
+          <input name="titular_direccion" value="{{ v.titular_direccion or '' }}" class="input-field">
+        </div>
+      </div>
+
+      <div style="grid-column:span 4;">
+        <label class="input-label">Agregar fotos</label>
+        <input name="fotos" type="file" accept="image/jpeg,image/png,image/webp" multiple class="input-field">
+        <small style="display:block; margin-top:6px; color:#666;">
+          Las fotos actuales se conservan. Podés agregar JPG, PNG o WebP de hasta 8 MB cada una (máximo 10 fotos por vehículo).
+        </small>
+      </div>
+
+      {% if v.fotos %}
+      <div style="grid-column:span 4;">
+        <label class="input-label">Fotos actuales ({{ v.fotos|length }})</label>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;">
+          {% for foto in v.fotos %}
+          <img
+            src="{{ url_for('ver_foto_vehiculo', vehiculo_id=v.id, nombre_archivo=foto.nombre_archivo) }}"
+            alt="Foto actual del vehículo"
+            style="width:120px; height:90px; object-fit:cover; border-radius:6px;"
+          >
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <div style="grid-column:span 4; display:flex; justify-content:flex-end; gap:10px; margin-top:4px;">
+        <a href="/vehiculos/{{ v.id }}/gastos" class="btn btn-info" style="background:#3498db; color:white;">💰 Gestionar Gastos</a>
+        <a href="/vehiculos" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function toggleTitularConsignacionEditar() {
+    const origen = document.getElementById('origenVehiculoEditar');
+    const wrapper = document.getElementById('camposTitularConsignacionEditar');
+    const title = document.getElementById('tituloTitularConsignacionEditar');
+    const isConsignacion = origen && origen.value === 'consignacion';
+
+    if (wrapper) wrapper.style.display = isConsignacion ? 'grid' : 'none';
+    if (title) title.style.display = isConsignacion ? 'block' : 'none';
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const origen = document.getElementById('origenVehiculoEditar');
+    if (origen) {
+      origen.addEventListener('change', toggleTitularConsignacionEditar);
+      toggleTitularConsignacionEditar();
+    }
+  });
+</script>
+
+{% endblock %}

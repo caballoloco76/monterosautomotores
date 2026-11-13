@@ -1,0 +1,178 @@
+{% extends "layout.html" %}
+
+{% block topbar_title %}Historial de Ventas{% endblock %}
+
+{% block topbar_actions %}
+<button onclick="window.print()" class="btn btn-secondary no-print">
+  🖨 Imprimir
+</button>
+<a href="/historial" class="btn btn-secondary">Operaciones cargadas</a>
+<a href="/ventas" class="btn btn-primary">+ Nueva Venta</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- FILTROS -->
+<div class="card no-print" style="margin-bottom:16px;">
+  <div class="card-body" style="padding:14px 22px;">
+    <form method="GET" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <input name="buscar" placeholder="Buscar cliente, vehículo, dominio..."
+             value="{{ busqueda }}"
+             class="input-field" style="max-width:320px;">
+
+      <select name="vendedor" class="input-field" style="max-width:200px;">
+        <option value="">Todos los vendedores</option>
+        {% for u in vendedores %}
+        <option value="{{ u.username }}" {{ 'selected' if vendedor_filtro == u.username }}>
+          {{ u.nombre_completo or u.username }}
+        </option>
+        {% endfor %}
+      </select>
+
+      <button class="btn btn-primary">Filtrar</button>
+      {% if busqueda or vendedor_filtro %}
+      <a href="/historial" class="btn btn-secondary">Limpiar</a>
+      {% endif %}
+
+      <div style="margin-left:auto; text-align:right;">
+        <div style="font-size:12px; color:#888;">Total filtrado</div>
+        <div style="font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:700; color:#16A34A;">
+          $ {{ "{:,.0f}".format(total_filtrado) }}
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- TABLA -->
+<div class="card">
+  <div style="overflow-x:auto;">
+    <table class="tabla">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Fecha</th>
+          <th>Cliente</th>
+          <th>Vehículo</th>
+          <th>Dominio</th>
+          <th>Tipo</th>
+          <th>Precio</th>
+          <th>Entrega</th>
+          <th>Financiado</th>
+          <th>Toma Usado</th>
+          <th>Banco</th>
+          <th>Vendedor</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for venta, cliente, vehiculo, usuario in ventas.items %}
+        <tr>
+          <td style="font-weight:700; color:#C0272D;">{{ venta.id }}</td>
+          <td style="white-space:nowrap; color:#666;">
+            {{ venta.fecha.strftime('%d/%m/%Y') if venta.fecha else '-' }}
+          </td>
+          <td>
+            <div style="font-weight:600;">{{ cliente.nombre }}</div>
+            <div style="font-size:11px; color:#999;">{{ cliente.telefono }}</div>
+          </td>
+          <td>
+            <div style="font-weight:600;">{{ vehiculo.marca }} {{ vehiculo.version }}</div>
+            <div style="font-size:11px; color:#999;">{{ vehiculo.año }}</div>
+          </td>
+          <td style="font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:600; letter-spacing:0.05em;">
+            {{ vehiculo.dominio }}
+          </td>
+          <td>
+            <span class="badge {{ 'badge-verde' if venta.tipo_operacion == 'contado' else 'badge-azul' }}">
+              {{ venta.tipo_operacion }}
+            </span>
+          </td>
+          <td style="font-weight:700; color:#16A34A;">
+            $ {{ "{:,.0f}".format(venta.precio) }}
+          </td>
+          <td style="color:#555;">
+            {% if venta.entrega %}$ {{ "{:,.0f}".format(venta.entrega) }}{% else %}—{% endif %}
+          </td>
+          <td style="color:#3B82F6;">
+            {% if venta.monto_financiado %}$ {{ "{:,.0f}".format(venta.monto_financiado) }}{% else %}—{% endif %}
+          </td>
+          <td>
+            {% if venta.toma_usado %}
+            <span class="badge badge-naranja">$ {{ "{:,.0f}".format(venta.precio_toma) }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td style="font-size:12px; color:#777;">{{ venta.banco or '—' }}</td>
+          <td>
+            <span class="badge badge-gris">{{ usuario.username }}</span>
+          </td>
+          <td>
+            {% if venta.estado == 'reserva' %}
+            <span class="badge badge-naranja">Reserva</span>
+            {% elif venta.estado == 'cancelada' %}
+            <span class="badge badge-rojo">Cancelada</span>
+            {% else %}
+            <span class="badge badge-verde">Finalizada</span>
+            {% endif %}
+          </td>
+          <td style="min-width:260px;">
+            <a href="/ventas/ver/{{ venta.id }}" class="btn btn-sm btn-secondary">Ver</a>
+            {% if venta.estado == 'reserva' %}
+            <a href="/ventas/editar/{{ venta.id }}" class="btn btn-sm btn-secondary">Modificar</a>
+            <a href="/ventas/ver/{{ venta.id }}#agregar-dinero" class="btn btn-sm btn-warning" style="background:#F59E0B;">Agregar dinero</a>
+            <a href="/ventas/finalizar/{{ venta.id }}" class="btn btn-sm btn-primary" style="background:#16A34A;">Finalizar</a>
+            <form method="POST" action="/ventas/cancelar/{{ venta.id }}" style="display:inline;" onsubmit="return confirm('¿Cancelar la operación #{{ venta.numero_operacion }}?')">
+              <button type="submit" class="btn btn-sm btn-danger">Cancelar</button>
+            </form>
+            {% endif %}
+          </td>
+        {% else %}
+        <tr>
+          <td colspan="14" style="text-align:center; padding:40px; color:#AAA;">
+            No hay ventas registradas
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- PAGINACIÓN -->
+  {% if ventas.pages > 1 %}
+  <div class="no-print" style="padding:16px 22px; display:flex; align-items:center; gap:8px; border-top:1px solid #F0F0F0;">
+    {% if ventas.has_prev %}
+    <a href="?page={{ ventas.prev_num }}&buscar={{ busqueda }}&vendedor={{ vendedor_filtro }}" class="btn btn-secondary btn-sm">← Anterior</a>
+    {% endif %}
+
+    {% for p in ventas.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+      {% if p %}
+        <a href="?page={{ p }}&buscar={{ busqueda }}&vendedor={{ vendedor_filtro }}"
+           class="btn btn-sm {{ 'btn-primary' if p == ventas.page else 'btn-secondary' }}">{{ p }}</a>
+      {% else %}
+        <span style="color:#CCC;">···</span>
+      {% endif %}
+    {% endfor %}
+
+    {% if ventas.has_next %}
+    <a href="?page={{ ventas.next_num }}&buscar={{ busqueda }}&vendedor={{ vendedor_filtro }}" class="btn btn-secondary btn-sm">Siguiente →</a>
+    {% endif %}
+
+    <span style="margin-left:auto; font-size:13px; color:#888;">
+      {{ ventas.total }} operaciones · Página {{ ventas.page }}/{{ ventas.pages }}
+    </span>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- PRINT STYLES -->
+<style>
+@media print {
+  .card { box-shadow: none; border: 1px solid #DDD; }
+  .tabla th, .tabla td { font-size: 11px; padding: 7px 10px; }
+  h1 { font-size: 18px; }
+}
+</style>
+
+{% endblock %}

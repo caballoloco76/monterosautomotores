@@ -1,0 +1,462 @@
+{% extends "layout.html" %}
+
+{% block topbar_title %}Gestión de Vehículos{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('catalogo_publico') }}" target="_blank" rel="noopener" class="btn btn-secondary">
+  Ver catálogo público
+</a>
+<button onclick="document.getElementById('formPanel').classList.toggle('hidden')" class="btn btn-primary">
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+  Nuevo Vehículo
+</button>
+{% endblock %}
+
+{% block content %}
+
+<style>
+  .vehicle-photo-preview { position:relative; width:96px; height:72px; }
+  .vehicle-photo-preview img { display:block; width:100%; height:100%; object-fit:cover; border-radius:8px; }
+  .vehicle-photo-remove {
+    position:absolute; top:-8px; right:-8px; display:grid; place-items:center;
+    width:24px; height:24px; border:2px solid #fff; border-radius:50%;
+    background:#c0272d; color:#fff; font-size:18px; line-height:1; cursor:pointer;
+    box-shadow:0 1px 5px rgba(15,23,42,.35);
+  }
+  .vehicle-photo-remove:hover { background:#991b1b; }
+  .vehicle-row { cursor:pointer; }
+  .vehicle-row:hover { background:#f8fafc; }
+  .vehicle-detail-backdrop {
+    position:fixed; inset:0; z-index:1000; display:none; align-items:center;
+    justify-content:center; padding:20px; background:rgba(15,23,42,.68);
+  }
+  .vehicle-detail-backdrop.is-open { display:flex; }
+  .vehicle-detail-dialog {
+    width:min(900px, 100%); max-height:90vh; overflow-y:auto; background:#fff;
+    border-radius:14px; box-shadow:0 24px 70px rgba(0,0,0,.3);
+  }
+  .vehicle-detail-header {
+    position:sticky; top:0; z-index:1; display:flex; justify-content:space-between;
+    align-items:flex-start; gap:16px; padding:18px 22px; background:#fff;
+    border-bottom:1px solid #e5e7eb;
+  }
+  .vehicle-detail-close {
+    border:0; background:#f3f4f6; border-radius:8px; width:36px; height:36px;
+    font-size:22px; cursor:pointer; flex-shrink:0;
+  }
+  .vehicle-detail-body { padding:20px 22px; }
+  .vehicle-detail-grid {
+    display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px;
+  }
+  .vehicle-detail-item { min-width:0; padding:12px; background:#f8fafc; border-radius:9px; }
+  .vehicle-detail-item small { display:block; margin-bottom:5px; color:#64748b; }
+  .vehicle-detail-photos { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+  .vehicle-detail-photos img {
+    width:140px; height:105px; object-fit:cover; border-radius:8px;
+  }
+  .vehicle-detail-actions {
+    display:flex; flex-wrap:wrap; gap:8px; padding:16px 22px;
+    border-top:1px solid #e5e7eb;
+  }
+  @media (max-width:640px) {
+    .vehicle-detail-backdrop { padding:8px; }
+    .vehicle-detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .vehicle-detail-body { padding:14px; }
+    .vehicle-detail-header, .vehicle-detail-actions { padding:14px; }
+  }
+</style>
+
+<!-- PANEL FORMULARIO (oculto por defecto) -->
+<div id="formPanel" class="card {{ '' if request.args.get('formulario') else 'hidden' }}" style="margin-bottom:24px;">
+  <div class="card-header">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Ingresar Vehículo</span>
+    <button onclick="document.getElementById('formPanel').classList.add('hidden')" style="background:none;border:none;cursor:pointer;color:#888;font-size:20px;">✕</button>
+  </div>
+  <div class="card-body">
+    <form method="POST" enctype="multipart/form-data" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px;">
+
+      <div>
+        <label class="input-label">Dominio</label>
+        <input name="dominio" placeholder="AA000BB" class="input-field" required>
+      </div>
+      <div>
+        <label class="input-label">Tipo</label>
+        <select name="tipo" class="input-field" required>
+          <option value="">Seleccionar...</option>
+          <option>Auto</option>
+          <option>Moto</option>
+          <option>Camioneta</option>
+          <option>Camión</option>
+          <option>Utilitario</option>
+        </select>
+      </div>
+      <div>
+        <label class="input-label">Marca</label>
+        <input name="marca" placeholder="Ford" class="input-field" required>
+      </div>
+      <div>
+        <label class="input-label">Versión</label>
+        <input name="version" placeholder="Focus SE 2.0" class="input-field">
+      </div>
+
+      <div>
+        <label class="input-label">Origen</label>
+        <select name="origen" id="origenVehiculo" class="input-field" required>
+          <option value="propio">Propio</option>
+          <option value="consignacion">Consignación</option>
+        </select>
+      </div>
+      <div>
+        <label class="input-label">Año</label>
+        <input name="año" type="number" placeholder="2020" class="input-field" required>
+      </div>
+      <div>
+        <label class="input-label">Kilómetros</label>
+        <input name="km" type="number" placeholder="50000" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Color</label>
+        <input name="color" placeholder="Blanco" class="input-field">
+      </div>
+
+      <div>
+        <label class="input-label">N° Chasis</label>
+        <input name="chasis" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">N° Motor</label>
+        <input name="motor" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Precio Compra $</label>
+        <input name="compra" type="number" placeholder="0" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Precio Venta $</label>
+        <input name="venta" type="number" placeholder="0" class="input-field" required>
+      </div>
+
+      <div id="tituloTitularConsignacion" style="grid-column:span 4; display:none;">
+        <h4 style="margin:0 0 8px; font-size:14px; color:#333;">Datos del titular en consignación</h4>
+      </div>
+
+      <div id="camposTitularConsignacion" style="grid-column:span 4; display:none; grid-template-columns:repeat(4,1fr); gap:14px; width:100%;">
+        <div>
+          <label class="input-label">Nombre y apellido</label>
+          <input name="titular_nombre_apellido" class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Teléfono</label>
+          <input name="titular_telefono" class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Localidad</label>
+          <input name="titular_localidad" class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Dirección</label>
+          <input name="titular_direccion" class="input-field">
+        </div>
+      </div>
+
+      <div style="grid-column:span 4; padding:16px; border:1px dashed #cbd5e1; border-radius:12px; background:#f8fafc;">
+        <label class="input-label" for="fotosVehiculo">Fotos de la unidad</label>
+        <input id="fotosVehiculo" name="fotos" type="file" accept="image/jpeg,image/png,image/webp" multiple class="input-field" style="background:#fff;">
+        <small style="display:block; color:#64748b; margin-top:6px;">Hasta 10 imágenes JPG, PNG o WebP (máximo 8 MB cada una).</small>
+        <div id="vistaPreviaFotos" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;"></div>
+      </div>
+
+      <div style="grid-column:span 4; display:flex; justify-content:flex-end; gap:10px; margin-top:4px;">
+        <button type="button" onclick="document.getElementById('formPanel').classList.add('hidden')" class="btn btn-secondary">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar Vehículo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- FILTROS -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-body" style="padding:14px 22px; display:flex; align-items:center; gap:12px;">
+    <span style="font-size:13px; color:#666; font-weight:500;">Filtrar:</span>
+    <a href="/vehiculos?filtro=disponible" class="btn btn-sm {{ 'btn-primary' if filtro == 'disponible' else 'btn-secondary' }}">Disponibles</a>
+    <a href="/vehiculos?filtro=reservado" class="btn btn-sm {{ 'btn-primary' if filtro == 'reservado' else 'btn-secondary' }}">Reservados</a>
+    <a href="/vehiculos?filtro=vendido" class="btn btn-sm {{ 'btn-primary' if filtro == 'vendido' else 'btn-secondary' }}">Vendidos</a>
+    <a href="/vehiculos?filtro=todos" class="btn btn-sm {{ 'btn-primary' if filtro == 'todos' else 'btn-secondary' }}">Todos</a>
+    <span style="margin-left:auto; font-size:13px; color:#888;">{{ vehiculos|length }} vehículos</span>
+  </div>
+</div>
+
+<!-- TABLA -->
+<div class="card">
+  <div style="overflow-x:auto;">
+    <table class="tabla">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Dominio</th>
+          <th>Tipo</th>
+          <th>Marca / Versión</th>
+          <th>Origen</th>
+          <th>Año</th>
+          <th>KM</th>
+          <th>Estado</th>
+          <th>Precio Compra</th>
+          <th>Precio Venta</th>
+          <th>Total Gastos</th>
+          <th>Ganancia Real</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vehiculos %}
+        {% set gastos = gastos_por_vehiculo.get(v.id, 0) %}
+        {% set ganancia = ganancia_por_vehiculo.get(v.id, 0) %}
+        <tr class="vehicle-row" data-vehicle-detail="detalle-vehiculo-{{ v.id }}"
+            tabindex="0" role="button"
+            aria-label="Ver detalle de {{ v.marca }} {{ v.version }} {{ v.dominio }}">
+          <td style="font-weight:700; color:#C0272D;">{{ v.interno }}</td>
+          <td style="font-weight:600; font-family:'Rajdhani',sans-serif; font-size:15px; letter-spacing:0.05em;">{{ v.dominio }}</td>
+          <td>
+            <span class="badge badge-gris">{{ v.tipo }}</span>
+          </td>
+          <td>
+            <div style="font-weight:600;">{{ v.marca }}</div>
+            <div style="font-size:12px; color:#888;">{{ v.version }}</div>
+          </td>
+          <td>
+            {% if v.origen == 'consignacion' %}
+            <span class="badge badge-azul">Consignación</span>
+            {% else %}
+            <span class="badge badge-verde">Propio</span>
+            {% endif %}
+          </td>
+          <td>{{ v.año }}</td>
+          <td>{{ "{:,}".format(v.km) if v.km else '-' }}</td>
+          <td>
+            {% if v.estado == "vendido" %}
+            <span class="badge badge-rojo">Vendido</span>
+            {% elif v.estado == "reservado" %}
+            <span class="badge badge-naranja">Reservado</span>
+            {% else %}
+            <span class="badge badge-verde">Disponible</span>
+            {% endif %}
+          </td>
+          <td style="font-size:13px;">
+            $ {{ "{:,.0f}".format(v.precio_compra or 0) }}
+          </td>
+          <td style="font-weight:700; color:#16A34A; font-size:13px;">
+            $ {{ "{:,.0f}".format(v.precio_venta or 0) }}
+          </td>
+          <td style="font-weight:700; color:#e74c3c; font-size:13px;">
+            -$ {{ "{:,.0f}".format(gastos) }}
+          </td>
+          <td style="font-weight:700; font-size:13px; color:{% if ganancia >= 0 %}#27ae60{% else %}#e74c3c{% endif %};">
+            $ {{ "{:,.0f}".format(ganancia) }}
+          </td>
+          <td>
+            <div style="display:flex; gap:4px; flex-wrap:wrap;">
+              <a href="/vehiculos/{{ v.id }}/gastos" class="btn btn-xs" style="background:#3498db; color:white; padding:3px 6px; font-size:11px;">💰 Gastos</a>
+              <a href="{{ url_for('fotos_vehiculos', vehiculo_id=v.id) }}" class="btn btn-xs" style="background:#7c3aed; color:white; padding:3px 6px; font-size:11px;">📷 Fotos</a>
+              <a href="/vehiculos/{{ v.id }}/posibles-compradores" class="btn btn-xs" style="background:#16A34A; color:white; padding:3px 6px; font-size:11px;">👥 Posibles compradores</a>
+              <a href="/vehiculos/editar/{{ v.id }}" class="btn btn-xs btn-secondary" style="padding:3px 6px; font-size:11px;">✏️ Editar</a>
+              {% if session.get('rol') == 'admin' %}
+              <form method="POST" action="/vehiculos/eliminar/{{ v.id }}"
+                    onsubmit="return confirm('¿Eliminar vehículo {{ v.dominio }}?')" style="display:inline;">
+                <button type="submit" class="btn btn-xs btn-danger" style="padding:3px 6px; font-size:11px;">🗑️</button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="13" style="text-align:center; padding:40px; color:#AAA;">
+            No hay vehículos en esta categoría
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% for v in vehiculos %}
+<template id="detalle-vehiculo-{{ v.id }}">
+  <div class="vehicle-detail-header">
+    <div>
+      <div style="font-size:12px; color:#64748b;">Vehículo #{{ v.interno }}</div>
+      <h2 style="margin:2px 0 0; font-size:25px;">{{ v.marca }} {{ v.version }}</h2>
+      <div style="margin-top:4px; font-weight:700; letter-spacing:.06em;">{{ v.dominio }}</div>
+    </div>
+    <button type="button" class="vehicle-detail-close" data-close-vehicle-detail aria-label="Cerrar detalle">×</button>
+  </div>
+  <div class="vehicle-detail-body">
+    <div class="vehicle-detail-grid">
+      <div class="vehicle-detail-item"><small>Estado</small><strong>{{ v.estado|capitalize }}</strong></div>
+      <div class="vehicle-detail-item"><small>Tipo</small><strong>{{ v.tipo or '—' }}</strong></div>
+      <div class="vehicle-detail-item"><small>Origen</small><strong>{{ 'Consignación' if v.origen == 'consignacion' else 'Propio' }}</strong></div>
+      <div class="vehicle-detail-item"><small>Año</small><strong>{{ v.año or '—' }}</strong></div>
+      <div class="vehicle-detail-item"><small>Kilómetros</small><strong>{{ v.km or '—' }}</strong></div>
+      <div class="vehicle-detail-item"><small>Color</small><strong>{{ v.color or '—' }}</strong></div>
+      <div class="vehicle-detail-item"><small>Precio de compra</small><strong>$ {{ "{:,.0f}".format(v.precio_compra or 0) }}</strong></div>
+      <div class="vehicle-detail-item"><small>Precio de venta</small><strong>$ {{ "{:,.0f}".format(v.precio_venta or 0) }}</strong></div>
+      <div class="vehicle-detail-item"><small>Total de gastos</small><strong>$ {{ "{:,.0f}".format(gastos_por_vehiculo.get(v.id, 0)) }}</strong></div>
+      <div class="vehicle-detail-item"><small>Ganancia real</small><strong>$ {{ "{:,.0f}".format(ganancia_por_vehiculo.get(v.id, 0)) }}</strong></div>
+      <div class="vehicle-detail-item"><small>N.º de chasis</small><strong>{{ v.chasis or '—' }}</strong></div>
+      <div class="vehicle-detail-item"><small>N.º de motor</small><strong>{{ v.motor or '—' }}</strong></div>
+      {% if v.origen == 'consignacion' %}
+      <div class="vehicle-detail-item"><small>Titular</small><strong>{{ v.titular_nombre_apellido or '—' }}</strong></div>
+      <div class="vehicle-detail-item"><small>Teléfono del titular</small><strong>{{ v.titular_telefono or '—' }}</strong></div>
+      <div class="vehicle-detail-item"><small>Localidad del titular</small><strong>{{ v.titular_localidad or '—' }}</strong></div>
+      <div class="vehicle-detail-item"><small>Dirección del titular</small><strong>{{ v.titular_direccion or '—' }}</strong></div>
+      {% endif %}
+    </div>
+    <div style="margin-top:20px;">
+      <strong>Fotos ({{ v.fotos|length }})</strong>
+      <div class="vehicle-detail-photos">
+        {% for foto in v.fotos %}
+        <a href="{{ url_for('ver_foto_vehiculo', vehiculo_id=v.id, nombre_archivo=foto.nombre_archivo) }}" target="_blank" rel="noopener">
+          <img src="{{ url_for('ver_foto_vehiculo', vehiculo_id=v.id, nombre_archivo=foto.nombre_archivo) }}" alt="Foto de {{ v.marca }} {{ v.version }}">
+        </a>
+        {% else %}
+        <span style="color:#64748b;">Este vehículo todavía no tiene fotos.</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="vehicle-detail-actions">
+    <a href="{{ url_for('editar_vehiculo', id=v.id) }}" class="btn btn-primary">Editar / agregar fotos</a>
+    <a href="{{ url_for('fotos_vehiculos', vehiculo_id=v.id) }}" class="btn btn-secondary">Administrar fotos</a>
+    <a href="{{ url_for('gestionar_gastos', vehiculo_id=v.id) }}" class="btn btn-secondary">Gestionar gastos</a>
+    <a href="{{ url_for('posibles_compradores', vehiculo_id=v.id) }}" class="btn btn-secondary">Posibles compradores</a>
+    {% if session.get('rol') == 'admin' %}
+    <form method="POST" action="{{ url_for('eliminar_vehiculo', id=v.id) }}"
+          onsubmit="return confirm('¿Eliminar vehículo {{ v.dominio }}? Esta acción no se puede deshacer.');">
+      <button type="submit" class="btn btn-danger">Eliminar vehículo</button>
+    </form>
+    {% endif %}
+  </div>
+</template>
+{% endfor %}
+
+<div id="vehicleDetailModal" class="vehicle-detail-backdrop"
+     role="dialog" aria-modal="true" aria-label="Detalle del vehículo"
+     aria-hidden="true">
+  <div class="vehicle-detail-dialog" id="vehicleDetailContent"></div>
+</div>
+
+<script>
+  function toggleTitularConsignacion() {
+    const origen = document.getElementById('origenVehiculo');
+    const wrapper = document.getElementById('camposTitularConsignacion');
+    const title = document.getElementById('tituloTitularConsignacion');
+    const isConsignacion = origen && origen.value === 'consignacion';
+
+    if (wrapper) wrapper.style.display = isConsignacion ? 'grid' : 'none';
+    if (title) title.style.display = isConsignacion ? 'block' : 'none';
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const origen = document.getElementById('origenVehiculo');
+    if (origen) {
+      origen.addEventListener('change', toggleTitularConsignacion);
+      toggleTitularConsignacion();
+    }
+
+    const selectorFotos = document.getElementById('fotosVehiculo');
+    const vistaPrevia = document.getElementById('vistaPreviaFotos');
+    if (selectorFotos && vistaPrevia) {
+      let fotosSeleccionadas = [];
+
+      function actualizarVistaPrevia() {
+        vistaPrevia.replaceChildren();
+        const transferencia = new DataTransfer();
+
+        fotosSeleccionadas.forEach(function (archivo, indice) {
+          transferencia.items.add(archivo);
+          if (!archivo.type.startsWith('image/')) return;
+
+          const contenedor = document.createElement('div');
+          contenedor.className = 'vehicle-photo-preview';
+          const imagen = document.createElement('img');
+          imagen.src = URL.createObjectURL(archivo);
+          imagen.alt = archivo.name;
+          imagen.addEventListener('load', function () {
+            URL.revokeObjectURL(imagen.src);
+          }, { once: true });
+
+          const quitar = document.createElement('button');
+          quitar.type = 'button';
+          quitar.className = 'vehicle-photo-remove';
+          quitar.textContent = '×';
+          quitar.setAttribute('aria-label', 'Quitar foto ' + archivo.name);
+          quitar.addEventListener('click', function () {
+            fotosSeleccionadas.splice(indice, 1);
+            actualizarVistaPrevia();
+          });
+
+          contenedor.append(imagen, quitar);
+          vistaPrevia.appendChild(contenedor);
+        });
+
+        selectorFotos.files = transferencia.files;
+      }
+
+      selectorFotos.addEventListener('change', function () {
+        fotosSeleccionadas = Array.from(selectorFotos.files);
+        actualizarVistaPrevia();
+      });
+    }
+
+    const modal = document.getElementById('vehicleDetailModal');
+    const modalContent = document.getElementById('vehicleDetailContent');
+    let activeRow = null;
+
+    function cerrarDetalleVehiculo() {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      modalContent.replaceChildren();
+      if (activeRow) activeRow.focus();
+      activeRow = null;
+    }
+
+    function abrirDetalleVehiculo(fila) {
+      const plantilla = document.getElementById(fila.dataset.vehicleDetail);
+      if (!plantilla) return;
+      activeRow = fila;
+      modalContent.replaceChildren(plantilla.content.cloneNode(true));
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      const botonCerrar = modalContent.querySelector('[data-close-vehicle-detail]');
+      if (botonCerrar) botonCerrar.focus();
+    }
+
+    document.querySelectorAll('.vehicle-row[data-vehicle-detail]').forEach(function (fila) {
+      fila.addEventListener('click', function (evento) {
+        if (evento.target.closest('a, button, form')) return;
+        abrirDetalleVehiculo(fila);
+      });
+      fila.addEventListener('keydown', function (evento) {
+        if (evento.key === 'Enter' || evento.key === ' ') {
+          evento.preventDefault();
+          abrirDetalleVehiculo(fila);
+        }
+      });
+    });
+
+    modal.addEventListener('click', function (evento) {
+      if (evento.target === modal || evento.target.closest('[data-close-vehicle-detail]')) {
+        cerrarDetalleVehiculo();
+      }
+    });
+    document.addEventListener('keydown', function (evento) {
+      if (evento.key === 'Escape' && modal.classList.contains('is-open')) {
+        cerrarDetalleVehiculo();
+      }
+    });
+  });
+</script>
+
+{% endblock %}

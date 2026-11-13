@@ -1,0 +1,185 @@
+{% extends "layout.html" %}
+{% block topbar_title %}Gastos - {{ vehiculo.marca }} {{ vehiculo.version }}{% endblock %}
+{% block content %}
+
+<div style="max-width:1000px; margin:0 auto;">
+  
+  <!-- RESUMEN DEL VEHÍCULO Y GANANCIA -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">
+        Vehículo #{{ vehiculo.interno }} - {{ vehiculo.dominio }}
+      </span>
+      <a href="/vehiculos" class="btn btn-secondary btn-sm">← Volver</a>
+    </div>
+    <div class="card-body">
+      <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:15px;">
+        <div>
+          <label style="color:#999; font-size:12px;">Precio Compra</label>
+          <div style="font-size:18px; font-weight:bold; color:#333;">
+            ${{ "%.2f"|format(vehiculo.precio_compra or 0) }}
+          </div>
+        </div>
+        <div>
+          <label style="color:#999; font-size:12px;">Precio Venta</label>
+          <div style="font-size:18px; font-weight:bold; color:#333;">
+            ${{ "%.2f"|format(vehiculo.precio_venta or 0) }}
+          </div>
+        </div>
+        <div>
+          <label style="color:#999; font-size:12px;">Total Gastos</label>
+          <div style="font-size:18px; font-weight:bold; color:#e74c3c;">
+            -${{ "%.2f"|format(total_gastos) }}
+          </div>
+        </div>
+        <div>
+          <label style="color:#999; font-size:12px;">GANANCIA REAL</label>
+          <div style="font-size:20px; font-weight:bold; color:{% if ganancia_real >= 0 %}#27ae60{% else %}#e74c3c{% endif %};">
+            ${{ "%.2f"|format(ganancia_real) }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AGREGAR GASTO -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">Registrar Nuevo Gasto</div>
+    <div class="card-body">
+      <form method="POST" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px;">
+        <div>
+          <label class="input-label">Tipo de Gasto *</label>
+          <select name="tipo" class="input-field" required>
+            <option value="">-- Seleccionar --</option>
+            <option>Mecánica</option>
+            <option>Pintura</option>
+            <option>Limpieza</option>
+            <option>Patente</option>
+            <option>Gestoría de Ingreso</option>
+            <option>Otros</option>
+          </select>
+        </div>
+        <div>
+          <label class="input-label">Monto $ *</label>
+          <input type="number" name="monto" step="0.01" class="input-field" required>
+        </div>
+        <div style="grid-column:span 2;">
+          <label class="input-label">Descripción</label>
+          <input type="text" name="descripcion" class="input-field" placeholder="Ej: Alineación y balanceo">
+        </div>
+        <div style="grid-column:span 4; display:flex; justify-content:flex-end; gap:10px; margin-top:4px;">
+          <button type="submit" class="btn btn-primary">+ Agregar Gasto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- LISTADO DE GASTOS -->
+  <div class="card">
+    <div class="card-header">Gastos Registrados ({{ gastos|length }})</div>
+    <div class="card-body">
+      {% if gastos %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width:15%;">Tipo</th>
+            <th style="width:35%;">Descripción</th>
+            <th style="width:15%;">Monto</th>
+            <th style="width:20%;">Fecha</th>
+            <th style="width:15%; text-align:right;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for gasto in gastos %}
+          <tr>
+            <td>
+              <span style="background:#f0f0f0; padding:4px 8px; border-radius:3px; font-size:12px; font-weight:bold;">
+                {{ gasto.tipo }}
+              </span>
+            </td>
+            <td>{{ gasto.descripcion or '—' }}</td>
+            <td style="font-weight:bold; color:#e74c3c;">
+              -${{ "%.2f"|format(gasto.monto) }}
+            </td>
+            <td style="font-size:12px; color:#999;">
+              {{ gasto.fecha.strftime('%d/%m/%Y %H:%M') if gasto.fecha else '—' }}
+            </td>
+            <td style="text-align:right;">
+              <a href="/vehiculos/{{ vehiculo.id }}/gastos/editar/{{ gasto.id }}" class="btn btn-small btn-warning">✏️ Editar</a>
+              <form method="POST" action="/vehiculos/{{ vehiculo.id }}/gastos/eliminar/{{ gasto.id }}" style="display:inline;" onclick="return confirm('¿Eliminar este gasto?');">
+                <button type="submit" class="btn btn-small btn-danger">🗑️ Eliminar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="background:#f5f5f5; font-weight:bold;">
+            <td colspan="2">TOTAL DE GASTOS:</td>
+            <td style="color:#e74c3c;">-${{ "%.2f"|format(total_gastos) }}</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+      {% else %}
+      <p style="color:#999; text-align:center; padding:20px;">Sin gastos registrados</p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<style>
+.btn-small {
+  padding: 4px 10px;
+  font-size: 12px;
+  display: inline-block;
+  margin-right: 5px;
+}
+
+.btn-warning {
+  background: #f39c12;
+  color: white;
+  text-decoration: none;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.btn-warning:hover {
+  background: #e67e22;
+}
+
+.btn-danger {
+  background: #e74c3c;
+  color: white;
+  text-decoration: none;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background: #c0392b;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table thead th {
+  background: #f0f0f0;
+  padding: 12px;
+  text-align: left;
+  font-weight: bold;
+  border-bottom: 2px solid #ddd;
+}
+
+table tbody td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+</style>
+
+{% endblock %}

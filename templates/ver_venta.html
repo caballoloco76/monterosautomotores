@@ -1,0 +1,219 @@
+{% extends "layout.html" %}
+{% block topbar_title %}Operación #{{ venta.numero_operacion }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/ventas" class="btn btn-secondary btn-sm">← Ventas</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:700px; margin:0 auto;">
+
+  <!-- ENCABEZADO -->
+  <div class="card" style="margin-bottom:20px; overflow:hidden;">
+    <div style="background:#1A1A1A; padding:20px 26px; display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:4px;">Operación</div>
+        <div style="font-family:'Rajdhani',sans-serif; font-size:40px; font-weight:700; color:#C0272D; letter-spacing:0.05em;">
+          #{{ venta.numero_operacion }}
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px; color:#888; margin-bottom:6px;">
+          {{ venta.fecha.strftime('%d/%m/%Y — %H:%M hs') if venta.fecha else '—' }}
+        </div>
+        <span style="background:{{ '#DCFCE7' if venta.estado == 'finalizada' else '#FEF3C7' }}; color:{{ '#166534' if venta.estado == 'finalizada' else '#92400E' }}; padding:5px 14px; border-radius:20px; font-size:12px; font-weight:700; font-family:'Rajdhani',sans-serif; text-transform:uppercase; letter-spacing:0.05em;">
+          {{ venta.estado | upper }}
+        </span>
+        <div style="margin-top:8px;">
+          <span class="badge badge-{{ 'verde' if venta.tipo_operacion == 'contado' else 'azul' }}">
+            {{ venta.tipo_operacion | capitalize }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-body" style="display:grid; grid-template-columns:1fr 1fr; gap:0;">
+
+      <!-- CLIENTE -->
+      <div style="padding:16px; border-right:1px solid #F0F0F0; border-bottom:1px solid #F0F0F0;">
+        <div style="font-size:11px; color:#AAA; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;">Cliente</div>
+        <div style="font-weight:700; font-size:15px; color:#1A1A1A; margin-bottom:4px;">{{ cliente.nombre }}</div>
+        {% if cliente.dni %}<div style="font-size:12px; color:#888;">DNI: {{ cliente.dni }}</div>{% endif %}
+        {% if cliente.telefono %}<div style="font-size:12px; color:#888;">📞 {{ cliente.telefono }}</div>{% endif %}
+        {% if cliente.email %}<div style="font-size:12px; color:#888;">✉ {{ cliente.email }}</div>{% endif %}
+        {% if cliente.localidad %}
+        <div style="font-size:12px; color:#888;">📍 {{ cliente.localidad }}{% if cliente.provincia %}, {{ cliente.provincia }}{% endif %}</div>
+        {% endif %}
+        <div style="margin-top:10px;">
+          <a href="/clientes/ver/{{ cliente.id }}" style="font-size:12px; color:#C0272D; text-decoration:none; font-weight:600;">Ver ficha del cliente →</a>
+        </div>
+      </div>
+
+      <!-- VEHÍCULO -->
+      <div style="padding:16px; border-bottom:1px solid #F0F0F0;">
+        <div style="font-size:11px; color:#AAA; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;">Vehículo</div>
+        <div style="font-weight:700; font-size:15px; color:#1A1A1A; margin-bottom:4px;">{{ vehiculo.marca }} {{ vehiculo.version }}</div>
+        <div style="font-size:12px; color:#888;">Año: {{ vehiculo.año }}</div>
+        <div style="font-size:12px; color:#888;">KM: {{ "{:,}".format(vehiculo.km) if vehiculo.km else '—' }}</div>
+        <div style="font-size:13px; font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:0.07em; margin-top:6px; color:#1A1A1A;">
+          🚗 {{ vehiculo.dominio }}
+        </div>
+      </div>
+
+      <!-- PRECIO OPERACIÓN -->
+      <div style="padding:16px; border-right:1px solid #F0F0F0;">
+        <div style="font-size:11px; color:#AAA; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;">Precio de la Unidad</div>
+        <div style="font-family:'Rajdhani',sans-serif; font-size:28px; font-weight:700; color:#16A34A;">
+          $ {{ "{:,.0f}".format(venta.precio) }}
+        </div>
+      </div>
+
+      <!-- VENDEDOR -->
+      <div style="padding:16px;">
+        <div style="font-size:11px; color:#AAA; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;">Registrado por</div>
+        <div style="font-weight:600; font-size:14px;">{{ vendedor.nombre_completo or vendedor.username }}</div>
+        <div style="font-size:12px; color:#888;">@{{ vendedor.username }}</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FORMA DE PAGO -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Detalle de la Forma de Pago</span>
+    </div>
+    <div class="card-body" style="display:flex; flex-direction:column; gap:10px;">
+
+      {% if venta.senia and venta.senia > 0 %}
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#F0FDF4; border-radius:8px; border:1px solid #BBF7D0;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:20px;">💵</span>
+          <div>
+            <div style="font-weight:600; font-size:14px;">Seña pactada</div>
+          </div>
+        </div>
+        <div style="font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:#16A34A;">
+          $ {{ "{:,.0f}".format(venta.senia) }}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if venta.entrega and venta.entrega > 0 %}
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#F0FDF4; border-radius:8px; border:1px solid #BBF7D0;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:20px;">💰</span>
+          <div style="font-weight:600; font-size:14px;">Contado pactado</div>
+        </div>
+        <div style="font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:#16A34A;">
+          $ {{ "{:,.0f}".format(venta.entrega) }}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if venta.toma_usado and venta.precio_toma %}
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#FFFBEB; border-radius:8px; border:1px solid #FDE68A;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:20px;">🔄</span>
+          <div>
+            <div style="font-weight:600; font-size:14px;">Entrega de Usado</div>
+          </div>
+        </div>
+        <div style="font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:#F59E0B;">
+          $ {{ "{:,.0f}".format(venta.precio_toma) }}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if venta.monto_financiado and venta.monto_financiado > 0 %}
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#EFF6FF; border-radius:8px; border:1px solid #BFDBFE;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:20px;">🏦</span>
+          <div>
+            <div style="font-weight:600; font-size:14px;">Crédito Bancario</div>
+            {% if venta.banco %}<div style="font-size:12px; color:#888;">{{ venta.banco }}</div>{% endif %}
+          </div>
+        </div>
+        <div style="font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:#3B82F6;">
+          $ {{ "{:,.0f}".format(venta.monto_financiado) }}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- TOTAL -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:14px; background:#1A1A1A; border-radius:8px; margin-top:4px;">
+        <span style="font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:700; color:#E8E8E8; text-transform:uppercase; letter-spacing:0.05em;">Total Operación</span>
+        <span style="font-family:'Rajdhani',sans-serif; font-size:26px; font-weight:700; color:#C0272D;">
+          $ {{ "{:,.0f}".format(venta.precio) }}
+        </span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- AGREGAR DINERO A LA SEÑA (Solo en estado reserva) -->
+  {% if venta.estado == 'reserva' %}
+  <div id="agregar-dinero" class="card" style="margin-bottom:20px; border-left:4px solid #F59E0B;">
+    <div class="card-header" style="background:#FFFBEB;">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:700; color:#92400E;">💰 El cliente trae más dinero</span>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="/ventas/agregar_anticipo/{{ venta.id }}" style="display:flex; gap:12px; align-items:flex-end;">
+        <div style="flex:1;">
+          <label style="display:block; font-size:12px; font-weight:600; color:#666; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em;">Dinero a registrar</label>
+          <input type="number" name="dinero_adicional" placeholder="0" step="0.01" min="0" required style="width:100%; padding:10px 12px; border:1px solid #DDD; border-radius:6px; font-size:14px; font-family:'Rajdhani',sans-serif; font-weight:600;">
+        </div>
+        <div style="width:150px;">
+          <label style="display:block; font-size:12px; font-weight:600; color:#666; margin-bottom:6px;">Medio</label>
+          <select name="medio" style="width:100%; padding:10px 8px; border:1px solid #DDD; border-radius:6px;">
+            <option value="efectivo">Efectivo</option>
+            <option value="transferencia">Transferencia</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-warning" style="background:#F59E0B; white-space:nowrap;">➕ Agregar Dinero</button>
+      </form>
+      <div style="margin-top:14px; padding:12px; background:#F9F9F9; border-radius:6px; font-size:12px;">
+        <strong style="color:#92400E;">Cuenta de la operación</strong>
+        <div style="display:flex; justify-content:space-between; margin-top:8px;"><span>Total del boleto</span><strong>$ {{ "{:,.2f}".format(venta.total_general or venta.precio or 0) }}</strong></div>
+        <div style="display:flex; justify-content:space-between; margin-top:4px;"><span>Total cobrado</span><strong style="color:#16A34A;">$ {{ "{:,.2f}".format(total_cobrado) }}</strong></div>
+        <div style="display:flex; justify-content:space-between; margin-top:4px; border-top:1px solid #DDD; padding-top:6px;"><span>Saldo pendiente</span><strong style="color:#C0272D;">$ {{ "{:,.2f}".format(saldo) }}</strong></div>
+      </div>
+      <div style="margin-top:12px; font-size:12px; color:#666;">
+        <strong>Historial de ingresos</strong>
+        {% for pago in pagos %}
+        <div style="display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid #EEE;">
+          <span>{{ pago.fecha.strftime('%d/%m/%Y %H:%M') }} · {{ pago.concepto }} · {{ pago.medio }}</span>
+          <span style="white-space:nowrap;">$ {{ "{:,.2f}".format(pago.monto) }}{% if pago.id %} <a href="{{ url_for('recibo_pago', venta_id=venta.id, pago_id=pago.id) }}" target="_blank">Recibo</a>{% endif %}</span>
+        </div>
+        {% else %}<div style="padding-top:8px; color:#999;">Todavía no hay ingresos registrados.</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ACCIONES -->
+  <div style="display:flex; gap:12px; justify-content:flex-end; flex-wrap:wrap;">
+    <a href="/ventas" class="btn btn-secondary">← Ventas</a>
+    {% if venta.estado == 'reserva' %}
+    <a href="/documento_reserva/{{ venta.id }}" class="btn btn-info" target="_blank" style="background:#0EA5E9;">📄 Documento de Reserva</a>
+    <form method="POST" action="/ventas/cancelar/{{ venta.id }}"
+          onsubmit="return confirm('¿Cancelar la reserva #{{ venta.numero_operacion }}? El vehículo volverá al stock.')">
+      <button type="submit" class="btn btn-danger">✕ Cancelar Reserva</button>
+    </form>
+    {% if session.get('rol') == 'admin' %}
+    <form method="POST" action="/ventas/eliminar/{{ venta.id }}"
+          onsubmit="return confirm('¿Eliminar definitivamente la operación #{{ venta.numero_operacion }}?')">
+      <button type="submit" class="btn btn-danger">🗑 Eliminar Operación</button>
+    </form>
+    {% endif %}
+    <a href="/ventas/finalizar/{{ venta.id }}" class="btn btn-primary" style="background:#16A34A;">✅ Finalizar Venta</a>
+    {% else %}
+    <a href="/boleto_venta/{{ venta.id }}" class="btn btn-info" target="_blank" style="background:#0EA5E9;">📄 Boleto de Venta</a>
+    <a href="/ventas" class="btn btn-primary">+ Nueva Venta</a>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

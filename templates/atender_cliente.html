@@ -1,0 +1,96 @@
+{% extends "layout.html" %}
+{% block topbar_title %}Atender Cliente #{{ c.interno }}{% endblock %}
+{% block content %}
+<div style="display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:20px; max-width:1000px; margin:0 auto; align-items:start;">
+<div class="card">
+  <div class="card-header">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Atender Cliente</span>
+    <a href="/clientes/ver/{{ c.id }}" class="btn btn-secondary btn-sm">← Volver</a>
+  </div>
+  <div class="card-body">
+    <form method="POST" style="display:grid; gap:18px;">
+      <div>
+        <label class="input-label">Nombre</label>
+        <div style="font-weight:600; font-size:16px;">{{ c.nombre }}</div>
+      </div>
+      <div>
+        <label class="input-label">Próxima atención</label>
+        <input type="date" name="proximo" class="input-field" value="{{ c.proximo_contacto or '' }}">
+      </div>
+      <div>
+        <label class="input-label">Nuevo comentario</label>
+        <textarea name="comentario" class="input-field" rows="4" placeholder="Detalle de lo charlado..."></textarea>
+        <div style="font-size:12px; color:#777; margin-top:5px;">Se guardará automáticamente con fecha y hora.</div>
+      </div>
+      <div style="border:1px solid #D6D3D1; background:#FAFAF9; padding:14px; border-radius:6px; display:grid; gap:10px;">
+        <label class="input-label" for="resultadoCaso">Cerrar gestión del cliente</label>
+        <select name="resultado_caso" id="resultadoCaso" class="input-field" onchange="actualizarCierre()">
+          <option value="">No cerrar: guardar seguimiento</option>
+          <option value="compra">Sí, ya compró</option>
+          <option value="no_compra">No compró</option>
+        </select>
+        <div id="bloqueCompra" style="display:none;">
+          <label class="input-label" for="vehiculoComprado">Vehículo que compró</label>
+          <select name="vehiculo_comprado_id" id="vehiculoComprado" class="input-field">
+            <option value="">Seleccionar vehículo...</option>
+            {% for vehiculo in vehiculos %}
+            <option value="{{ vehiculo.id }}">#{{ vehiculo.interno }} · {{ vehiculo.marca }} {{ vehiculo.version }} · {{ vehiculo.dominio }}{% if vehiculo.año %} · {{ vehiculo.año }}{% endif %}</option>
+            {% endfor %}
+          </select>
+          {% if request.args.get('error') == 'vehiculo_requerido' %}<div style="color:#B42318; font-size:12px; margin-top:5px;">Seleccione el vehículo que compró.</div>{% endif %}
+        </div>
+        <div id="bloqueNoCompra" style="display:none;">
+          <label class="input-label" for="motivoNoCompra">Motivo de no compra</label>
+          <textarea name="motivo_no_compra" id="motivoNoCompra" class="input-field" rows="3" placeholder="Precio, financiación, eligió otra unidad...">{{ c.motivo_no_compra or '' }}</textarea>
+          {% if request.args.get('error') == 'motivo_requerido' %}<div style="color:#B42318; font-size:12px; margin-top:5px;">Indique el motivo para cerrar el caso.</div>{% endif %}
+        </div>
+        {% if request.args.get('error') == 'resultado_invalido' %}<div style="color:#B42318; font-size:12px;">Seleccione un resultado válido.</div>{% endif %}
+      </div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <a href="/clientes/ver/{{ c.id }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Historial de comentarios</span>
+  </div>
+  <div class="card-body">
+    {% for nota in notas %}
+    <div style="padding:12px 0; border-bottom:1px solid #F0F0F0;">
+      <div style="display:flex; justify-content:space-between; gap:10px; font-size:12px; color:#777;">
+        <span>{{ nota.usuario.nombre_completo or nota.usuario.username }}</span>
+        <span>{{ nota.creado_en.strftime('%d/%m/%Y %H:%M') }}</span>
+      </div>
+      <div style="margin-top:6px; white-space:pre-wrap;">{{ nota.contenido }}</div>
+      {% if session.get('rol') == 'admin' %}
+      <form method="POST" action="{{ url_for('eliminar_nota_cliente', nota_id=nota.id) }}" style="margin-top:8px;" onsubmit="return confirm('¿Eliminar este comentario? Esta acción no se puede deshacer.');">
+        <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+      </form>
+      {% endif %}
+    </div>
+    {% else %}
+    <div style="color:#999; font-size:13px;">Todavía no hay comentarios.</div>
+    {% endfor %}
+  </div>
+</div>
+</div>
+<script>
+function actualizarCierre() {
+  const resultado = document.getElementById('resultadoCaso').value;
+  const compra = resultado === 'compra';
+  const noCompra = resultado === 'no_compra';
+  document.getElementById('bloqueCompra').style.display = compra ? 'block' : 'none';
+  document.getElementById('bloqueNoCompra').style.display = noCompra ? 'block' : 'none';
+  document.getElementById('vehiculoComprado').required = compra;
+  document.getElementById('motivoNoCompra').required = noCompra;
+}
+</script>
+<style>
+@media (max-width:700px) {
+  .page-area > div[style*="grid-template-columns:minmax"] { grid-template-columns:1fr !important; }
+}
+</style>
+{% endblock %}

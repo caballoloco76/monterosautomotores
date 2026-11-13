@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Documento de Reserva</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+        }
+        .encabezado {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #C0272D;
+            padding-bottom: 15px;
+        }
+        .titulo_empresa {
+            font-size: 28px;
+            font-weight: bold;
+            color: #C0272D;
+            margin-bottom: 5px;
+        }
+        .datos_empresa {
+            font-size: 11px;
+            color: #666;
+            margin-top: 8px;
+        }
+        .titulo_documento {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1A1A1A;
+            margin-top: 15px;
+            margin-bottom: 5px;
+        }
+        .numero_operacion {
+            font-size: 14px;
+            color: #C0272D;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .seccion {
+            margin-bottom: 20px;
+            background: #F9F9F9;
+            padding: 12px;
+            border-left: 4px solid #C0272D;
+        }
+        .titulo_seccion {
+            font-size: 13px;
+            font-weight: bold;
+            color: #C0272D;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 0.05em;
+        }
+        .campo {
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        .campo_label {
+            font-weight: bold;
+            color: #333;
+        }
+        .campo_valor {
+            color: #666;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        th, td {
+            border: 1px solid #DDD;
+            padding: 8px;
+            text-align: left;
+            font-size: 12px;
+        }
+        th {
+            background: #F0F0F0;
+            font-weight: bold;
+        }
+        .resumen_financiero {
+            background: #FFF;
+            border: 2px solid #C0272D;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .linea_resumen {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .linea_resumen_total {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 2px solid #C0272D;
+            font-weight: bold;
+            font-size: 14px;
+            color: #C0272D;
+        }
+        .condiciones {
+            margin-top: 25px;
+            padding: 12px;
+            background: #FFFBEB;
+            border: 1px solid #FCD34D;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+        .condicion_titulo {
+            font-weight: bold;
+            color: #92400E;
+            margin-bottom: 6px;
+        }
+        .firmas {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-around;
+        }
+        .firma_bloque {
+            width: 45%;
+            text-align: center;
+        }
+        .linea_firma {
+            border-top: 1px solid #333;
+            margin-top: 40px;
+            padding-top: 5px;
+            font-size: 11px;
+        }
+        .importante {
+            color: #C0272D;
+            font-weight: bold;
+        }
+        .fecha_footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 10px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ENCABEZADO -->
+<div class="encabezado">
+    <div class="titulo_empresa">{{ empresa.nombre }}</div>
+    <div class="datos_empresa">
+        {{ empresa.direccion }}<br>
+        Teléfono: {{ empresa.telefono }} | Email: {{ empresa.email }}
+    </div>
+    <div class="titulo_documento">DOCUMENTO DE RESERVA Y CONTRATO</div>
+    <div class="numero_operacion">Operación Nº {{ venta.numero_operacion }}</div>
+    <div style="font-size: 12px; color: #666;">
+        Fecha: {{ venta.fecha.strftime('%d de %B de %Y') | replace('January', 'enero') | replace('February', 'febrero') | replace('March', 'marzo') | replace('April', 'abril') | replace('May', 'mayo') | replace('June', 'junio') | replace('July', 'julio') | replace('August', 'agosto') | replace('September', 'septiembre') | replace('October', 'octubre') | replace('November', 'noviembre') | replace('December', 'diciembre') }}
+    </div>
+</div>
+
+<!-- DATOS DEL CLIENTE -->
+<div class="seccion">
+    <div class="titulo_seccion">Datos del Cliente</div>
+    <div class="campo">
+        <span class="campo_label">Nombre Completo:</span>
+        <span class="campo_valor">{{ cliente.nombre }}</span>
+    </div>
+    {% if cliente.dni %}
+    <div class="campo">
+        <span class="campo_label">DNI:</span>
+        <span class="campo_valor">{{ cliente.dni }}</span>
+    </div>
+    {% endif %}
+    {% if cliente.telefono %}
+    <div class="campo">
+        <span class="campo_label">Teléfono:</span>
+        <span class="campo_valor">{{ cliente.telefono }}</span>
+    </div>
+    {% endif %}
+    {% if cliente.email %}
+    <div class="campo">
+        <span class="campo_label">Email:</span>
+        <span class="campo_valor">{{ cliente.email }}</span>
+    </div>
+    {% endif %}
+    {% if cliente.domicilio %}
+    <div class="campo">
+        <span class="campo_label">Domicilio:</span>
+        <span class="campo_valor">{{ cliente.domicilio }}{% if cliente.localidad %}, {{ cliente.localidad }}{% endif %}{% if cliente.provincia %}, {{ cliente.provincia }}{% endif %}</span>
+    </div>
+    {% endif %}
+</div>
+
+<!-- DATOS DEL VEHÍCULO -->
+<div class="seccion">
+    <div class="titulo_seccion">Vehículo Reservado</div>
+    <table>
+        <tr>
+            <th>Marca</th>
+            <th>Versión</th>
+            <th>Año</th>
+            <th>Dominio</th>
+            <th>Color</th>
+        </tr>
+        <tr>
+            <td>{{ vehiculo.marca }}</td>
+            <td>{{ vehiculo.version }}</td>
+            <td>{{ vehiculo.año }}</td>
+            <td><strong>{{ vehiculo.dominio }}</strong></td>
+            <td>{{ vehiculo.color }}</td>
+        </tr>
+    </table>
+    <div class="campo">
+        <span class="campo_label">Tipo:</span>
+        <span class="campo_valor">{{ vehiculo.tipo }}</span>
+    </div>
+    {% if vehiculo.km %}
+    <div class="campo">
+        <span class="campo_label">Kilómetros:</span>
+        <span class="campo_valor">{{ "{:,}".format(vehiculo.km) }}</span>
+    </div>
+    {% endif %}
+    <div class="campo">
+        <span class="campo_label">Chasis:</span>
+        <span class="campo_valor">{{ vehiculo.chasis or '—' }}</span>
+    </div>
+    <div class="campo">
+        <span class="campo_label">Motor:</span>
+        <span class="campo_valor">{{ vehiculo.motor or '—' }}</span>
+    </div>
+</div>
+
+<!-- RESUMEN FINANCIERO -->
+<div class="resumen_financiero">
+    <div style="font-size: 13px; font-weight: bold; color: #C0272D; margin-bottom: 12px;">RESUMEN FINANCIERO</div>
+    
+    <div class="linea_resumen">
+        <span>Precio de la Unidad:</span>
+        <span>$ {{ "{:,.2f}".format(venta.precio) }}</span>
+    </div>
+    
+    {% if venta.monto_financiado and venta.monto_financiado > 0 %}
+    <div class="linea_resumen">
+        <span>Financiamiento Bancario:</span>
+        <span>$ {{ "{:,.2f}".format(venta.monto_financiado) }}</span>
+    </div>
+    {% if venta.banco %}
+    <div class="linea_resumen" style="padding-left: 20px; font-size: 11px; color: #666;">
+        <span>Banco: {{ venta.banco }}</span>
+        <span></span>
+    </div>
+    {% endif %}
+    {% endif %}
+    
+    {% if venta.toma_usado and venta.precio_toma > 0 %}
+    <div class="linea_resumen">
+        <span>Entrega de Vehículo Usado:</span>
+        <span style="color: #F59E0B;">-$ {{ "{:,.2f}".format(venta.precio_toma) }}</span>
+    </div>
+    {% endif %}
+    
+    <div class="linea_resumen_total">
+        <span>MONTO DE LA SEÑA REGISTRADA:</span>
+        <span>$ {{ "{:,.2f}".format(venta.senia) }}</span>
+    </div>
+</div>
+
+<!-- VIGENCIA DE LA RESERVA -->
+<div class="seccion">
+    <div class="titulo_seccion">Vigencia de la Reserva</div>
+    <div class="campo">
+        <span class="campo_label">Fecha de Reserva:</span>
+        <span class="campo_valor">{{ venta.fecha.strftime('%d/%m/%Y') }}</span>
+    </div>
+    <div class="campo">
+        <span class="campo_label">Fecha de Vencimiento:</span>
+        <span class="campo_valor"><span class="importante">{{ fecha_vencimiento.strftime('%d/%m/%Y') }}</span></span>
+    </div>
+    <div class="campo" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #DDD; color: #C0272D; font-size: 11px;">
+        ⚠️ La presente reserva tiene vigencia hasta la fecha indicada. Pasada dicha fecha, la seña se considera pérdida si no se procede con la compra.
+    </div>
+</div>
+
+<!-- OBSERVACIONES -->
+{% if venta.observaciones_senia %}
+<div class="seccion">
+    <div class="titulo_seccion">Observaciones</div>
+    <div class="campo">
+        <span class="campo_valor">{{ venta.observaciones_senia }}</span>
+    </div>
+</div>
+{% endif %}
+
+<!-- CONDICIONES GENERALES -->
+<div class="condiciones">
+    <div class="condicion_titulo">CONDICIONES GENERALES DE LA RESERVA:</div>
+    
+    <p><strong>1. RESERVA Y ANTICIPO:</strong> El cliente acepta realizar una reserva del vehículo indicado mediante el pago de una seña de $ {{ "{:,.2f}".format(venta.senia) }}. Esta seña constituye un compromiso de compra y será acreditada al precio final del vehículo.</p>
+    
+    <p><strong>2. VIGENCIA:</strong> La presente reserva tiene vigencia exclusivamente hasta el {{ fecha_vencimiento.strftime('%d de %B de %Y') | replace('January', 'enero') | replace('February', 'febrero') | replace('March', 'marzo') | replace('April', 'abril') | replace('May', 'mayo') | replace('June', 'junio') | replace('July', 'julio') | replace('August', 'agosto') | replace('September', 'septiembre') | replace('October', 'octubre') | replace('November', 'noviembre') | replace('December', 'diciembre') }}. Pasada esta fecha, si no se formalizara la operación, la seña se considera pérdida.</p>
+    
+    <p><strong>3. ESTADO DEL VEHÍCULO:</strong> El vehículo se entrega en el estado actual. El cliente declara haber inspeccionado y conformado con el estado del mismo.</p>
+    
+    <p><strong>4. DOCUMENTACIÓN:</strong> {{ empresa.nombre }} se compromete a entregar toda la documentación legal necesaria para la transferencia del vehículo al momento de finalizar la compra.</p>
+    
+    <p><strong>5. CAMBIOS O MODIFICACIONES:</strong> Cualquier cambio en los términos de esta reserva debe ser acordado por escrito por ambas partes.</p>
+    
+    <p><strong>6. CONFORMIDAD:</strong> Al firmar este documento, ambas partes declaran conformarse con los términos aquí establecidos y aceptan todas las condiciones de la transacción.</p>
+</div>
+
+<!-- FIRMAS -->
+<div class="firmas">
+    <div class="firma_bloque">
+        <div style="margin-bottom: 30px;">El Cliente</div>
+        <div class="linea_firma">
+            {{ cliente.nombre }}<br>
+            DNI: {{ cliente.dni or '_______________' }}
+        </div>
+    </div>
+    
+    <div class="firma_bloque">
+        <div style="margin-bottom: 30px;">{{ empresa.nombre }}</div>
+        <div class="linea_firma">
+            Vendedor: {{ vendedor.nombre_completo }}<br>
+            Firma y Aclaración
+        </div>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<div class="fecha_footer">
+    <p>Documento generado el {{ venta.fecha.strftime('%d/%m/%Y a las %H:%M hs') }}</p>
+    <p>Sistema: {{ empresa.nombre }} | Operación: {{ venta.numero_operacion }}</p>
+</div>
+
+</body>
+</html>

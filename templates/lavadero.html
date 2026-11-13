@@ -1,0 +1,773 @@
+{% extends "layout.html" %}
+
+{% block topbar_title %}Lavadero{% endblock %}
+
+{% block topbar_actions %}
+<nav class="wash-top-nav" aria-label="Secciones del lavadero">
+  <a href="{{ url_for('lavadero') }}" class="btn {{ 'btn-primary' if vista == 'lavadero' else 'btn-secondary' }}">Nuevo lavado</a>
+  <details class="wash-report-menu">
+    <summary class="btn btn-secondary">Generar reporte</summary>
+    <form id="formReporteIngresos" class="wash-report-form" method="GET" action="{{ url_for('reporte_ingresos_lavadero') }}">
+      <label class="input-label" for="periodoReporte">Período del reporte</label>
+      <select id="periodoReporte" name="periodo" class="input-field" required>
+        <option value="dia">Por día</option>
+        <option value="semana">Por semana</option>
+        <option value="mes">Por mes</option>
+      </select>
+      <label class="input-label" for="fechaReporte">Fecha de referencia</label>
+      <input id="fechaReporte" type="date" name="fecha" class="input-field" value="{{ fecha_cobros.isoformat() }}" required>
+      <button class="btn btn-primary" type="submit">Ver reporte</button>
+    </form>
+  </details>
+  <a href="{{ url_for('lavadero', vista='clientes') }}" class="btn {{ 'btn-primary' if vista == 'clientes' else 'btn-secondary' }}">Mostrar listado de clientes</a>
+  <a href="{{ url_for('lavadero', vista='ingresos') }}" class="btn {{ 'btn-primary' if vista == 'ingresos' else 'btn-secondary' }}">Control diario de ingresos</a>
+  <a href="{{ url_for('lavadero', vista='historial') }}" class="btn {{ 'btn-primary' if vista == 'historial' else 'btn-secondary' }}">Historial de lavados</a>
+</nav>
+{% endblock %}
+
+{% block content %}
+{% if vista == 'lavadero' %}
+<div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; margin-bottom:18px;">
+  <div class="kpi-card azul">
+    <div class="kpi-label">Lavados registrados</div>
+    <div class="kpi-value">{{ total_lavados }}</div>
+    <div class="kpi-sub">Historial total del lavadero</div>
+  </div>
+  <div class="kpi-card verde">
+    <div class="kpi-label">Ingresos de hoy</div>
+    <div class="kpi-value">{{ lavados_hoy }}</div>
+    <div class="kpi-sub">Vehículos atendidos hoy</div>
+  </div>
+  <div class="kpi-card naranja">
+    <div class="kpi-label">Total recaudado</div>
+    <div class="kpi-value" style="font-size:22px;">$ {{ "{:,.2f}".format(total_recaudado) }}</div>
+    <div class="kpi-sub">Cobros confirmados de lavados</div>
+  </div>
+</div>
+
+{% if error %}
+<div class="alerta-box danger" style="margin-bottom:16px;">{{ error }}</div>
+{% endif %}
+
+<div id="formulario-nuevo-lavado" class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Nuevo lavado</span>
+    <span style="font-size:12px; color:#777;">Busque primero por patente para recuperar cliente y promoción</span>
+  </div>
+  <div class="card-body">
+    <form id="formLavadero" method="POST">
+      <div class="wash-search">
+        <div class="wash-search-field">
+          <label class="input-label" for="patente">Patente del vehículo</label>
+          <input id="patente" name="patente" class="input-field wash-plate" maxlength="12"
+                 autocomplete="off" placeholder="Ej.: AB123CD" value="{{ form_data.get('patente', '') }}" required>
+        </div>
+        <button id="buscarPatente" type="button" class="btn btn-primary wash-search-button">
+          Buscar patente
+        </button>
+      </div>
+      <div id="resultadoPatente" class="wash-result" aria-live="polite">
+        Ingrese la patente para identificar al cliente y consultar sus lavados.
+      </div>
+
+      <section id="datosClienteNuevo" class="wash-section" hidden>
+        <div class="wash-section-heading">
+          <span class="wash-step">1</span>
+          <div><strong>Nuevo cliente</strong><small>La patente no está registrada. Complete sus datos para crear la ficha del lavadero.</small></div>
+        </div>
+        <div class="wash-fields">
+          <div><label class="input-label" for="nombre">Nombre y apellido *</label><input id="nombre" name="nombre" class="input-field" value="{{ form_data.get('nombre', '') }}"></div>
+          <div><label class="input-label" for="dni">DNI</label><input id="dni" name="dni" class="input-field" value="{{ form_data.get('dni', '') }}"></div>
+          <div><label class="input-label" for="telefono">Teléfono</label><input id="telefono" name="telefono" class="input-field" value="{{ form_data.get('telefono', '') }}"></div>
+          <div><label class="input-label" for="email">Email</label><input id="email" name="email" type="email" class="input-field" value="{{ form_data.get('email', '') }}"></div>
+          <div><label class="input-label" for="domicilio">Domicilio</label><input id="domicilio" name="domicilio" class="input-field" value="{{ form_data.get('domicilio', '') }}"></div>
+          <div><label class="input-label" for="localidad">Localidad</label><input id="localidad" name="localidad" class="input-field" value="{{ form_data.get('localidad', '') }}"></div>
+          <div id="bloqueUnidadNueva">
+            <label class="input-label" for="unidad">Tipo de unidad *</label>
+            <select id="unidad" name="unidad" class="input-field">
+              <option value="">Seleccionar unidad...</option>
+              <option value="Auto">Auto</option>
+              <option value="Camioneta">Camioneta</option>
+              <option value="Moto">Moto</option>
+            </select>
+          </div>
+          <div id="bloqueCategoriaMotoNueva" hidden>
+            <label class="input-label" for="tipoMoto">Categoría de moto *</label>
+            <select id="tipoMoto" name="tipo_moto" class="input-field">
+              <option value="">Seleccionar categoría...</option>
+              {% for categoria in categorias_moto %}
+              <option value="{{ categoria }}">{{ categoria }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div><label class="input-label" for="marcaVehiculo">Marca del vehículo</label><input id="marcaVehiculo" name="marca_vehiculo" class="input-field" maxlength="50" value="{{ form_data.get('marca_vehiculo', '') }}"></div>
+          <div><label class="input-label" for="modeloVehiculo">Modelo</label><input id="modeloVehiculo" name="modelo_vehiculo" class="input-field" maxlength="50" value="{{ form_data.get('modelo_vehiculo', '') }}"></div>
+          <div><label class="input-label" for="anioVehiculo">Año</label><input id="anioVehiculo" name="anio_vehiculo" type="number" class="input-field" min="1886" max="{{ today_iso[:4]|int + 1 }}" value="{{ form_data.get('anio_vehiculo', '') }}"></div>
+          <div><label class="input-label" for="colorVehiculo">Color</label><input id="colorVehiculo" name="color_vehiculo" class="input-field" maxlength="50" value="{{ form_data.get('color_vehiculo', '') }}"></div>
+          <div><label class="input-label" for="kmVehiculo">Kilometraje</label><input id="kmVehiculo" name="km_vehiculo" type="number" class="input-field" min="0" step="1" value="{{ form_data.get('km_vehiculo', '') }}"></div>
+          <div>
+            <label class="input-label" for="provincia">Provincia</label>
+            <select id="provincia" name="provincia" class="input-field">
+              <option value="">Seleccionar...</option>
+              {% for provincia in ['Buenos Aires','CABA','Catamarca','Chaco','Chubut','Córdoba','Corrientes','Entre Ríos','Formosa','Jujuy','La Pampa','La Rioja','Mendoza','Misiones','Neuquén','Río Negro','Salta','San Juan','San Luis','Santa Cruz','Santa Fe','Santiago del Estero','Tierra del Fuego','Tucumán'] %}
+              <option value="{{ provincia }}">{{ provincia }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section id="datosLavado" class="wash-section" hidden>
+        <div class="wash-section-heading">
+          <span class="wash-step">2</span>
+          <div><strong>Tipo de lavado</strong><small>El vehículo existente conserva su unidad registrada; seleccione el servicio.</small></div>
+        </div>
+        <div class="wash-fields wash-fields-service">
+          <div id="unidadExistentePanel" class="wash-price" hidden>
+            <span>Unidad registrada</span>
+            <strong id="unidadExistente"></strong>
+            <small id="categoriaMotoExistente"></small>
+          </div>
+          <div id="bloqueTipoLavado" hidden>
+            <label class="input-label" for="tipoLavado">Tipo de lavado *</label>
+            <select id="tipoLavado" name="tipo_lavado" class="input-field" disabled>
+              <option value="">Seleccionar...</option>
+            </select>
+          </div>
+          <input id="tipoMotoExistente" type="hidden" name="tipo_lavado" value="">
+          <div id="precioLavadoPanel" class="wash-price" hidden>
+            <span>Precio del servicio</span>
+            <strong id="precioLavado"></strong>
+            <small>El descuento aplicable se calcula al registrar el lavado.</small>
+          </div>
+          <div id="bloquePromocionEspecial" hidden>
+            <label class="input-label" for="promocionEspecial">Promoción especial del cliente</label>
+            <select id="promocionEspecial" name="promocion_id" class="input-field">
+              <option value="">Sin promoción especial</option>
+            </select>
+            <small style="display:block; color:#8A641F; margin-top:5px;">Al usarla, este lavado no suma para el descuento del quinto.</small>
+          </div>
+          <div>
+            <label class="input-label" for="interesadoVender">¿Le interesa vender su vehículo?</label>
+            <select id="interesadoVender" name="interesado_vender" class="input-field" onchange="actualizarAgendaLavadero()">
+              <option value="no">No</option><option value="si">Sí, agendar contacto</option>
+            </select>
+          </div>
+          <div id="fechaAgendaLavadero" hidden>
+            <label class="input-label" for="proximoContacto">Fecha para contactar *</label>
+            <input id="proximoContacto" name="proximo_contacto" type="date" class="input-field">
+          </div>
+          <div class="wash-notes">
+            <label class="input-label" for="descripcion">Notas de la visita</label>
+            <textarea id="descripcion" name="descripcion" class="input-field" rows="2" placeholder="Observaciones opcionales..."></textarea>
+          </div>
+        </div>
+      </section>
+
+      <div id="accionesLavado" class="wash-submit" hidden>
+        <button id="registrarLavado" type="submit" class="btn btn-primary">Registrar lavado</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if vista == 'ingresos' %}
+<div id="control-diario-ingresos" class="card" style="overflow-x:auto;">
+  <section class="card" style="margin:0 0 18px; overflow-x:auto;">
+    <div class="card-header">
+      <div>
+        <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Control diario de ingresos</span>
+        <span style="display:block; font-size:12px; color:#777;">Caja independiente del lavadero · no afecta la Caja general</span>
+      </div>
+      <form method="GET" action="{{ url_for('lavadero') }}" style="display:flex; align-items:center; gap:8px;">
+        <label class="input-label" for="fechaCobros" style="margin:0;">Fecha</label>
+        <input id="fechaCobros" type="date" name="fecha_cobros" class="input-field" value="{{ fecha_cobros.isoformat() }}">
+        <button class="btn btn-primary" type="submit">Consultar</button>
+      </form>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:18px; padding:14px 18px; border-bottom:1px solid #EEE;">
+      <strong>Total: $ {{ "{:,.2f}".format(total_cobros_dia) }}</strong>
+      <span>Contado: $ {{ "{:,.2f}".format(total_efectivo_dia) }}</span>
+      <span>Transferencias: $ {{ "{:,.2f}".format(total_transferencias_dia) }}</span>
+      <span>{{ cobros_del_dia|length }} cobranza(s)</span>
+    </div>
+    <table class="tabla" style="min-width:780px;">
+      <thead>
+        <tr><th>Hora</th><th>Patente</th><th>Cliente</th><th>Importe</th><th>Medio</th><th>Datos de transferencia</th></tr>
+      </thead>
+      <tbody>
+        {% for cobro in cobros_del_dia %}
+        <tr>
+          <td>{{ cobro.cobrado_en.strftime('%H:%M') }}</td>
+          <td><strong>{{ cobro.vehiculo.patente }}</strong></td>
+          <td>{{ cobro.vehiculo.cliente.nombre if cobro.vehiculo.cliente else 'Cliente eliminado' }}</td>
+          <td><strong>$ {{ "{:,.2f}".format(cobro.importe_final) }}</strong></td>
+          <td>{{ 'Contado' if cobro.medio_cobro == 'Efectivo' else cobro.medio_cobro }}</td>
+          <td>
+            {% if cobro.medio_cobro == 'Transferencia' %}
+            {{ cobro.titular_transferencia }} · {{ cobro.app_transferencia }}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center; color:#999; padding:20px;">No hay ingresos del lavadero para esta fecha.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endif %}
+
+{% if vista in ('lavadero', 'historial') %}
+{% set lavados_vista = lavados_ingresados_hoy if vista == 'lavadero' else lavados %}
+<div id="historial-lavados" class="card" style="overflow-x:auto;">
+  <div class="card-header">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">{{ 'Vehículos ingresados' if vista == 'lavadero' else 'Historial de lavados' }}</span>
+    <span style="font-size:12px; color:#777;">{{ lavados_vista|length }} registro(s)</span>
+  </div>
+  <table class="tabla" style="min-width:1120px;">
+    <thead>
+      <tr>
+        <th>Ingreso</th>
+        <th>Control del lavado</th>
+        <th>Patente</th>
+        <th>Cliente</th>
+        <th>Unidad</th>
+        <th>Tipo</th>
+        <th>Lavado N°</th>
+        <th>Precio</th>
+        <th>Descuento</th>
+        <th>Total a cobrar</th>
+        <th>Cobranza</th>
+        <th>Agenda</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lavado in lavados_vista %}
+      <tr>
+        <td>
+          {{ lavado.fecha.strftime('%d/%m/%Y %H:%M') }}
+          {% if lavado.control_tiempo %}
+          <small style="display:block; color:#777;">Hora de ingreso</small>
+          {% endif %}
+        </td>
+        <td>
+          {% if lavado.control_tiempo %}
+          <div class="wash-time" data-start="{{ lavado.fecha.isoformat() }}"
+               data-end="{{ lavado.terminado_en.isoformat() if lavado.terminado_en else '' }}">
+            <span class="wash-duration">Calculando...</span>
+            {% if lavado.terminado_en %}
+            <small>Terminado {{ lavado.terminado_en.strftime('%d/%m/%Y %H:%M') }}</small>
+            {% else %}
+            <form method="POST" action="{{ url_for('terminar_lavado', lavado_id=lavado.id) }}">
+              <input type="hidden" name="vista" value="historial">
+              <button type="submit" class="btn btn-sm btn-primary">Vehículo terminado</button>
+            </form>
+            {% endif %}
+          </div>
+          {% else %}
+          <span style="font-size:12px; color:#999;">Sin control de tiempo (registro anterior)</span>
+          {% endif %}
+        </td>
+        <td style="font-weight:700;">{{ lavado.vehiculo.patente }}</td>
+        <td>{{ lavado.vehiculo.cliente.nombre if lavado.vehiculo.cliente else 'Cliente eliminado' }}</td>
+        <td>{{ lavado.unidad }}</td>
+        <td>{{ lavado.tipo }}</td>
+        <td>#{{ lavado.numero_lavado }}{% if not lavado.cuenta_para_promocion %}<span style="color:#8A641F; font-size:11px;"> · especial, no suma</span>{% elif lavado.id in ids_proximo_descuento %}<span style="color:#B45309; font-size:11px;"> · próximo con 50%</span>{% endif %}</td>
+        <td>$ {{ "{:,.2f}".format(lavado.precio) }}</td>
+        <td>
+          {% if lavado.descuento_porcentaje %}<small>Promoción: {{ lavado.descuento_porcentaje }}%</small>{% endif %}
+          {% if lavado.descuento_cobro_porcentaje %}<small style="display:block;">En cobro: {{ lavado.descuento_cobro_porcentaje }}%</small>{% endif %}
+          {% if not lavado.descuento_porcentaje and not lavado.descuento_cobro_porcentaje %}—{% endif %}
+        </td>
+        <td style="font-weight:700;">$ {{ "{:,.2f}".format(lavado.importe_final) }}</td>
+        <td>
+          {% if lavado.cobrado_en %}
+          <span class="badge badge-verde">Cobrado · {{ lavado.medio_cobro }}</span>
+          <small style="display:block; color:#777;">{{ lavado.cobrado_en.strftime('%d/%m %H:%M') }}</small>
+          {% else %}
+          <button type="button" class="btn btn-sm wash-cobrar-trigger" aria-expanded="false"
+                  aria-controls="formCobro{{ lavado.id }}">Cobrar</button>
+          <form id="formCobro{{ lavado.id }}" class="wash-cobro-form" method="POST"
+                action="{{ url_for('cobrar_lavado', lavado_id=lavado.id) }}" data-importe-base="{{ lavado.importe_final }}" hidden>
+            <label class="input-label" for="medioCobro{{ lavado.id }}">Forma de cobro</label>
+            <select id="medioCobro{{ lavado.id }}" name="medio_cobro" class="input-field" required>
+              <option value="">Seleccionar...</option>
+              <option value="Efectivo">Contado (efectivo)</option>
+              <option value="Transferencia">Transferencia</option>
+            </select>
+            <label class="input-label" for="descuentoCobro{{ lavado.id }}">Descuento al cobrar</label>
+            <select id="descuentoCobro{{ lavado.id }}" name="descuento_cobro_porcentaje" class="input-field" required>
+              <option value="0">Sin descuento</option>
+              {% for porcentaje in range(10, 101, 10) %}
+              <option value="{{ porcentaje }}">{{ porcentaje }}%</option>
+              {% endfor %}
+            </select>
+            <div class="wash-transfer-fields" hidden>
+              <label class="input-label" for="titularTransferencia{{ lavado.id }}">Titular de la cuenta</label>
+              <input id="titularTransferencia{{ lavado.id }}" name="titular_transferencia" class="input-field" maxlength="120">
+              <label class="input-label" for="appTransferencia{{ lavado.id }}">Banco o aplicación</label>
+              <input id="appTransferencia{{ lavado.id }}" name="app_transferencia" class="input-field" maxlength="80" placeholder="Ej.: Mercado Pago">
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary">Confirmar cobro · <span class="wash-cobro-total">$ {{ "{:,.2f}".format(lavado.importe_final) }}</span></button>
+          </form>
+          {% endif %}
+        </td>
+        <td>{% if lavado.interesado_vender %}<span class="badge badge-naranja">Contactar</span>{% else %}—{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="12" style="text-align:center; color:#999; padding:28px;">{{ 'Todavía no hay vehículos ingresados hoy.' if vista == 'lavadero' else 'Todavía no hay lavados registrados.' }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if vista == 'clientes' %}
+<section id="clientes-lavadero" class="card" style="margin-top:20px; overflow-x:auto;">
+  <div class="card-header">
+    <div>
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Clientes del lavadero</span>
+      <span style="display:block; font-size:12px; color:#777;">{{ clientes_lavadero|length }} clientes encontrados</span>
+    </div>
+    <form method="GET" action="{{ url_for('lavadero') }}" style="display:flex; align-items:center; gap:8px;">
+      <input type="hidden" name="vista" value="clientes">
+      <label for="filtroUnidadClientes" class="input-label" style="margin:0;">Unidad</label>
+      <select id="filtroUnidadClientes" name="unidad" class="input-field" style="min-width:150px;">
+        {% for unidad_opcion in ['Total', 'Auto', 'Camioneta', 'Moto'] %}
+        <option value="{{ unidad_opcion }}" {% if unidad_filtro == unidad_opcion %}selected{% endif %}>
+          {{ 'Todos' if unidad_opcion == 'Total' else unidad_opcion }}
+        </option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary">Filtrar</button>
+    </form>
+  </div>
+  <table class="tabla" style="min-width:1000px;">
+    <thead>
+      <tr>
+        <th>Cliente</th>
+        <th>Patentes</th>
+        <th>Lavados válidos</th>
+        <th>Promoción especial</th>
+        <th>Contacto</th>
+        <th>Invitación individual</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cliente in clientes_lavadero %}
+      {% set promo = promociones_activas.get(cliente.id) %}
+      <tr>
+        <td>
+          <strong>{{ cliente.nombre }}</strong>
+          {% if cliente.dni %}<div style="font-size:12px; color:#777;">DNI {{ cliente.dni }}</div>{% endif %}
+        </td>
+        <td>
+          {% for vehiculo in vehiculos_por_cliente.get(cliente.id, []) %}
+          <span class="wash-plate-badge">{{ vehiculo.patente }}</span>
+          {% endfor %}
+        </td>
+        <td>
+          {% for vehiculo in vehiculos_por_cliente.get(cliente.id, []) %}
+          <div>{{ vehiculo.patente }} · {{ vehiculo.lavados.filter_by(cuenta_para_promocion=True).count() }} lavado(s)</div>
+          {% endfor %}
+        </td>
+        <td>
+          {% if promo %}
+          <span class="badge badge-naranja">{{ promo.porcentaje }}% hasta {{ promo.vence_en.strftime('%d/%m/%Y') }}</span>
+          {% else %}—{% endif %}
+        </td>
+        <td>{{ cliente.whatsapp or cliente.telefono or 'Sin teléfono' }}</td>
+        <td>
+          {% if cliente.whatsapp or cliente.telefono %}
+          <form method="POST" action="{{ url_for('crear_promocion_lavadero', cliente_id=cliente.id) }}" target="_blank" class="wash-promo-form">
+            <select name="porcentaje" class="input-field" aria-label="Porcentaje de descuento para {{ cliente.nombre }}" required>
+              <option value="">Descuento</option>
+              {% for porcentaje in [10, 15, 20, 25, 30, 40, 50] %}
+              <option value="{{ porcentaje }}">{{ porcentaje }}%</option>
+              {% endfor %}
+            </select>
+            <input type="date" name="vence_en" class="input-field" value="{{ fecha_promocion_default }}" min="{{ today_iso }}" aria-label="Vencimiento de promoción para {{ cliente.nombre }}" required>
+            <button type="submit" class="btn btn-sm wash-whatsapp-btn">Preparar WhatsApp</button>
+          </form>
+          {% else %}
+          <span style="font-size:12px; color:#999;">Agregar teléfono en CRM</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center; color:#999; padding:24px;">Los clientes aparecerán aquí cuando registres su primera patente.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<script>
+const campoPatente = document.getElementById('patente');
+const preciosLavado = {{ precios_lavado_json|tojson }};
+const botonBuscar = document.getElementById('buscarPatente');
+const resultadoPatente = document.getElementById('resultadoPatente');
+const datosClienteNuevo = document.getElementById('datosClienteNuevo');
+const datosLavado = document.getElementById('datosLavado');
+const accionesLavado = document.getElementById('accionesLavado');
+const unidadNueva = document.getElementById('unidad');
+const tipoLavado = document.getElementById('tipoLavado');
+const tipoMotoNueva = document.getElementById('tipoMoto');
+const tipoMotoExistente = document.getElementById('tipoMotoExistente');
+const preciosLavadoPanel = document.getElementById('precioLavadoPanel');
+let patenteVerificada = '';
+let numeroConsulta = 0;
+let unidadActual = '';
+
+document.querySelectorAll('.wash-cobrar-trigger').forEach(boton => {
+  boton.addEventListener('click', function() {
+    const formulario = document.getElementById(this.getAttribute('aria-controls'));
+    formulario.hidden = !formulario.hidden;
+    this.setAttribute('aria-expanded', String(!formulario.hidden));
+    if (!formulario.hidden) {
+      formulario.querySelector('select').focus();
+    }
+  });
+});
+document.querySelectorAll('.wash-cobro-form').forEach(formulario => {
+  const medio = formulario.querySelector('select[name="medio_cobro"]');
+  const descuento = formulario.querySelector('select[name="descuento_cobro_porcentaje"]');
+  const total = formulario.querySelector('.wash-cobro-total');
+  const importeBase = Number(formulario.dataset.importeBase);
+  const bloqueTransferencia = formulario.querySelector('.wash-transfer-fields');
+  const camposTransferencia = bloqueTransferencia.querySelectorAll('input');
+  descuento.addEventListener('change', function() {
+    const importe = importeBase * (100 - Number(this.value)) / 100;
+    total.textContent = `$ ${importe.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  });
+  medio.addEventListener('change', function() {
+    const transferencia = this.value === 'Transferencia';
+    bloqueTransferencia.hidden = !transferencia;
+    camposTransferencia.forEach(campo => { campo.required = transferencia; });
+  });
+});
+
+function actualizarDuracionesLavado() {
+  document.querySelectorAll('.wash-time').forEach(control => {
+    const inicio = new Date(control.dataset.start).getTime();
+    const fin = control.dataset.end ? new Date(control.dataset.end).getTime() : Date.now();
+    if (!Number.isFinite(inicio) || !Number.isFinite(fin)) return;
+    const segundos = Math.max(0, Math.floor((fin - inicio) / 1000));
+    const horas = Math.floor(segundos / 3600);
+    const minutos = Math.floor((segundos % 3600) / 60);
+    const resto = segundos % 60;
+    control.querySelector('.wash-duration').textContent =
+      `Duración: ${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(resto).padStart(2, '0')}`;
+  });
+}
+actualizarDuracionesLavado();
+if (Array.from(document.querySelectorAll('.wash-time')).some(control => !control.dataset.end)) {
+  window.setInterval(actualizarDuracionesLavado, 1000);
+}
+
+if (campoPatente) {
+function limpiarResultado() {
+  numeroConsulta++;
+  botonBuscar.disabled = false;
+  botonBuscar.textContent = 'Buscar patente';
+  patenteVerificada = '';
+  resultadoPatente.className = 'wash-result';
+  resultadoPatente.textContent = 'Busque la patente para continuar con el registro.';
+  datosClienteNuevo.hidden = true;
+  datosLavado.hidden = true;
+  accionesLavado.hidden = true;
+  document.getElementById('bloquePromocionEspecial').hidden = true;
+  document.getElementById('promocionEspecial').innerHTML = '<option value="">Sin promoción especial</option>';
+  document.getElementById('nombre').required = false;
+  tipoLavado.required = false;
+  unidadNueva.required = false;
+  unidadNueva.disabled = false;
+  tipoLavado.disabled = true;
+  tipoMotoNueva.disabled = false;
+  tipoMotoNueva.required = false;
+  tipoMotoExistente.disabled = true;
+  unidadActual = '';
+  document.getElementById('bloqueUnidadNueva').hidden = false;
+  document.getElementById('unidadExistentePanel').hidden = true;
+  document.getElementById('bloqueCategoriaMotoNueva').hidden = true;
+  document.getElementById('unidadExistente').textContent = '';
+  document.getElementById('categoriaMotoExistente').textContent = '';
+  document.getElementById('nombre').value = '';
+  document.getElementById('dni').value = '';
+  document.getElementById('telefono').value = '';
+  document.getElementById('email').value = '';
+  document.getElementById('domicilio').value = '';
+  document.getElementById('localidad').value = '';
+  document.getElementById('provincia').value = '';
+  document.getElementById('marcaVehiculo').value = '';
+  document.getElementById('modeloVehiculo').value = '';
+  document.getElementById('anioVehiculo').value = '';
+  document.getElementById('colorVehiculo').value = '';
+  document.getElementById('kmVehiculo').value = '';
+  tipoLavado.innerHTML = '<option value="">Seleccione tipo de lavado...</option>';
+  unidadNueva.value = '';
+  tipoMotoNueva.value = '';
+  tipoMotoExistente.value = '';
+  actualizarPrecioLavado();
+  document.getElementById('interesadoVender').value = 'no';
+  document.getElementById('proximoContacto').value = '';
+  document.getElementById('descripcion').value = '';
+  actualizarAgendaLavadero();
+}
+
+async function buscarPatente() {
+  const patente = campoPatente.value.trim().toUpperCase();
+  if (!patente) {
+    resultadoPatente.className = 'wash-result wash-result-error';
+    resultadoPatente.textContent = 'Ingrese una patente para buscar.';
+    campoPatente.focus();
+    return;
+  }
+
+  botonBuscar.disabled = true;
+  botonBuscar.textContent = 'Buscando...';
+  resultadoPatente.className = 'wash-result';
+  resultadoPatente.textContent = 'Consultando clientes y promociones...';
+  datosClienteNuevo.hidden = true;
+  datosLavado.hidden = true;
+  accionesLavado.hidden = true;
+  patenteVerificada = '';
+  const consultaActual = ++numeroConsulta;
+
+  try {
+    const response = await fetch(`/lavadero/buscar-patente?patente=${encodeURIComponent(patente)}`);
+    const data = await response.json();
+    if (consultaActual !== numeroConsulta) return;
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || 'No se pudo consultar la patente.');
+    }
+
+    campoPatente.value = data.patente;
+    patenteVerificada = data.patente;
+    if (data.existe) {
+      const cliente = data.cliente;
+      configurarUnidad(data.unidad, true, data.categoria_moto);
+      resultadoPatente.className = 'wash-result wash-result-success';
+      resultadoPatente.innerHTML = '';
+      const titulo = document.createElement('strong');
+      titulo.textContent = `Cliente encontrado: ${cliente.nombre}`;
+      const detalle = document.createElement('span');
+      detalle.textContent = [cliente.dni ? `DNI ${cliente.dni}` : '', cliente.telefono].filter(Boolean).join(' · ') || 'Sin datos de contacto';
+      const detalleUnidad = document.createElement('span');
+      detalleUnidad.textContent = `Unidad registrada: ${data.unidad}` +
+        (data.unidad === 'Moto' && data.categoria_moto ? ` · ${data.categoria_moto}` : '');
+      const infoVehiculo = data.datos_vehiculo || {};
+      const resumenVehiculo = [
+        infoVehiculo.marca,
+        infoVehiculo.modelo,
+        infoVehiculo.anio,
+        infoVehiculo.color,
+        infoVehiculo.km !== '' && infoVehiculo.km !== null ? `${infoVehiculo.km} km` : ''
+      ].filter(Boolean);
+      if (resumenVehiculo.length) {
+        const detalleComercial = document.createElement('span');
+        detalleComercial.textContent = `Vehículo: ${resumenVehiculo.join(' · ')}`;
+        resultadoPatente.append(titulo, detalle, detalleUnidad, detalleComercial);
+      } else {
+        resultadoPatente.append(titulo, detalle, detalleUnidad);
+      }
+      const progreso = document.createElement('span');
+      progreso.className = 'wash-promo';
+      progreso.textContent = data.aplica_descuento
+        ? `Lavado #${data.proximo_lavado}: ¡50% de descuento aplicado!`
+        : `${data.cantidad_lavados} lavado(s) registrados · próximo: #${data.proximo_lavado}`;
+      resultadoPatente.append(progreso);
+      const promociones = data.promociones || [];
+      const bloquePromocion = document.getElementById('bloquePromocionEspecial');
+      const selectorPromocion = document.getElementById('promocionEspecial');
+      selectorPromocion.innerHTML = '<option value="">Sin promoción especial</option>';
+      promociones.forEach(promocion => {
+        const opcion = document.createElement('option');
+        opcion.value = promocion.id;
+        opcion.textContent = `${promocion.porcentaje}% de descuento · vence ${promocion.vence_en}`;
+        selectorPromocion.appendChild(opcion);
+      });
+      bloquePromocion.hidden = promociones.length === 0;
+      selectorPromocion.onchange = function() {
+        if (this.value) {
+          progreso.textContent = 'Promoción especial seleccionada: el lavado no suma y conserva el avance de fidelidad.';
+        } else {
+          progreso.textContent = data.aplica_descuento
+            ? `Lavado #${data.proximo_lavado}: ¡50% de descuento aplicado!`
+            : `${data.cantidad_lavados} lavado(s) registrados · próximo: #${data.proximo_lavado}`;
+        }
+      };
+    } else {
+      configurarUnidad('', false, '');
+      resultadoPatente.className = 'wash-result wash-result-new';
+      resultadoPatente.textContent = data.cliente_pendiente
+        ? 'Patente encontrada sin cliente asociado. Complete los datos del cliente para vincularla.'
+        : 'Patente nueva. Cargue los datos del cliente para crear su ficha.';
+      datosClienteNuevo.hidden = false;
+      document.getElementById('nombre').required = true;
+      document.getElementById('bloquePromocionEspecial').hidden = true;
+      document.getElementById('promocionEspecial').value = '';
+    }
+    datosLavado.hidden = false;
+    accionesLavado.hidden = false;
+    unidadNueva.required = !data.existe;
+    tipoLavado.required = Boolean(data.existe
+    ? data.unidad !== 'Moto'
+    : unidadNueva.value && unidadNueva.value !== 'Moto');
+    if (data.existe && data.unidad === 'Moto') {
+      document.getElementById('interesadoVender').focus();
+    } else {
+      document.getElementById(data.existe ? 'tipoLavado' : 'nombre').focus();
+    }
+  } catch (error) {
+    if (consultaActual === numeroConsulta) {
+      resultadoPatente.className = 'wash-result wash-result-error';
+      resultadoPatente.textContent = error.message || 'Error al buscar la patente.';
+    }
+  } finally {
+    if (consultaActual === numeroConsulta) {
+      botonBuscar.disabled = false;
+      botonBuscar.textContent = 'Buscar patente';
+    }
+  }
+}
+
+botonBuscar.addEventListener('click', buscarPatente);
+campoPatente.addEventListener('input', limpiarResultado);
+campoPatente.addEventListener('keydown', event => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    buscarPatente();
+  }
+});
+
+document.getElementById('formLavadero').addEventListener('submit', event => {
+  if (patenteVerificada !== campoPatente.value.trim().toUpperCase()) {
+    event.preventDefault();
+    limpiarResultado();
+    buscarPatente();
+  }
+});
+
+function actualizarAgendaLavadero() {
+  const interesado = document.getElementById('interesadoVender').value === 'si';
+  const bloqueFecha = document.getElementById('fechaAgendaLavadero');
+  const fecha = document.getElementById('proximoContacto');
+  bloqueFecha.hidden = !interesado;
+  fecha.required = interesado;
+}
+function actualizarPrecioLavado() {
+  const unidad = unidadActual;
+  const tipo = unidad === 'Moto'
+    ? (unidadNueva.disabled ? tipoMotoExistente.value : tipoMotoNueva.value)
+    : tipoLavado.value;
+  const preciosUnidad = preciosLavado[unidad] || {};
+  const precio = preciosUnidad[tipo];
+  preciosLavadoPanel.hidden = !precio;
+  document.getElementById('precioLavado').textContent = precio
+    ? `$ ${new Intl.NumberFormat('es-AR').format(precio)}`
+    : '';
+}
+
+function configurarUnidad(unidad, existente, categoriaMoto) {
+  const bloqueUnidadNueva = document.getElementById('bloqueUnidadNueva');
+  const unidadExistentePanel = document.getElementById('unidadExistentePanel');
+  const bloqueCategoriaMoto = document.getElementById('bloqueCategoriaMotoNueva');
+  const bloqueTipoLavado = document.getElementById('bloqueTipoLavado');
+  unidadActual = unidad;
+  const opciones = preciosLavado[unidad] || {};
+  bloqueUnidadNueva.hidden = existente;
+  unidadExistentePanel.hidden = !existente;
+  unidadNueva.disabled = existente;
+  unidadNueva.value = existente ? '' : unidad;
+  document.getElementById('unidadExistente').textContent = unidad || '';
+  document.getElementById('categoriaMotoExistente').textContent =
+    existente && unidad === 'Moto' ? (categoriaMoto || 'Categoría no registrada') : '';
+  bloqueCategoriaMoto.hidden = existente || unidad !== 'Moto';
+  tipoMotoNueva.required = !existente && unidad === 'Moto';
+  tipoMotoNueva.disabled = existente || unidad !== 'Moto';
+  tipoLavado.innerHTML = '<option value="">Seleccione tipo de lavado...</option>';
+  Object.entries(opciones).forEach(([tipo, precio]) => {
+    const opcion = document.createElement('option');
+    opcion.value = tipo;
+    opcion.textContent = `${tipo} — $ ${new Intl.NumberFormat('es-AR').format(precio)}`;
+    tipoLavado.appendChild(opcion);
+  });
+  const esMotoExistente = existente && unidad === 'Moto';
+  bloqueTipoLavado.hidden = unidad === 'Moto';
+  tipoLavado.disabled = esMotoExistente || unidad === 'Moto' || !unidad;
+  tipoLavado.required = Boolean(unidad && unidad !== 'Moto');
+  tipoMotoExistente.disabled = !esMotoExistente;
+  tipoMotoExistente.value = esMotoExistente ? categoriaMoto || '' : '';
+  preciosLavadoPanel.hidden = true;
+  if (esMotoExistente && categoriaMoto && opciones[categoriaMoto]) {
+    preciosLavadoPanel.hidden = false;
+    document.getElementById('precioLavado').textContent =
+      `$ ${new Intl.NumberFormat('es-AR').format(opciones[categoriaMoto])}`;
+  }
+  actualizarPrecioLavado();
+}
+
+unidadNueva.addEventListener('change', function() {
+  tipoMotoNueva.value = '';
+  configurarUnidad(this.value, false, '');
+});
+tipoLavado.addEventListener('change', actualizarPrecioLavado);
+tipoMotoNueva.addEventListener('change', actualizarPrecioLavado);
+actualizarAgendaLavadero();
+actualizarPrecioLavado();
+}
+</script>
+
+<style>
+.wash-search { display:flex; align-items:end; gap:12px; max-width:680px; margin:4px auto 14px; }
+.wash-search-field { flex:1; }
+.wash-plate { height:48px; font-size:20px !important; font-weight:700 !important; letter-spacing:.08em; text-transform:uppercase; }
+.wash-search-button { height:48px; min-width:155px; justify-content:center; }
+.wash-result { max-width:680px; min-height:48px; box-sizing:border-box; margin:0 auto; padding:13px 16px; display:flex; flex-direction:column; gap:4px; border:1px solid #E5E7EB; border-radius:8px; background:#F8FAFC; color:#64748B; font-size:13px; }
+.wash-result-success { border-color:#BBF7D0; background:#F0FDF4; color:#166534; }
+.wash-result-new { border-color:#BFDBFE; background:#EFF6FF; color:#1D4ED8; }
+.wash-result-error { border-color:#FECACA; background:#FEF2F2; color:#B42318; }
+.wash-promo { margin-top:5px; font-weight:700; color:#A16207; }
+.wash-section { margin-top:22px; padding-top:20px; border-top:1px solid #EAECEF; }
+.wash-section-heading { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+.wash-section-heading > div { display:grid; gap:3px; }
+.wash-section-heading small { color:#77808D; font-size:12px; }
+.wash-step { width:30px; height:30px; display:grid; place-items:center; border-radius:50%; background:#F5EFE3; color:#9A732D; font-weight:700; }
+.wash-fields { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; }
+.wash-fields-service { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.wash-notes { grid-column:1 / -1; }
+.wash-submit { display:flex; justify-content:flex-end; margin-top:18px; padding-top:16px; border-top:1px solid #EAECEF; }
+.wash-promo-form { display:flex; align-items:center; gap:6px; min-width:390px; }
+.wash-promo-form select { width:100px; }
+.wash-promo-form input[type="date"] { width:145px; }
+.wash-cobro-form { display:grid; gap:6px; min-width:190px; }
+.wash-cobro-form .input-label { margin:3px 0 0; font-size:11px; }
+.wash-transfer-fields { display:grid; gap:6px; }
+.wash-whatsapp-btn { background:#16803C; color:#fff; white-space:nowrap; }
+.wash-price { display:flex; flex-direction:column; gap:4px; align-self:end; padding:10px 14px; border-radius:8px; border:1px solid #DDE8D9; background:#F4FAF2; }
+.wash-price span { font-size:11px; color:#64705F; text-transform:uppercase; letter-spacing:.05em; }
+.wash-price strong { font-size:22px; color:#286338; }
+.wash-price small { font-size:11px; color:#788274; }
+.wash-plate-badge { display:inline-block; padding:3px 7px; border:1px solid #D9DEE5; border-radius:4px; font-size:12px; font-weight:700; margin:2px; }
+.wash-top-nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.wash-report-menu { position:relative; }
+.wash-report-menu summary { list-style:none; cursor:pointer; }
+.wash-report-menu summary::-webkit-details-marker { display:none; }
+.wash-report-menu[open] > summary { background:var(--rojo); color:#FFF; }
+.wash-report-menu[open] > summary:hover { background:var(--rojo-dark); }
+.wash-report-form { position:absolute; z-index:20; top:calc(100% + 6px); right:0; display:grid; gap:7px; width:min(300px, calc(100vw - 24px)); padding:14px; border:1px solid #DDE2E8; border-radius:6px; background:#FFF; box-shadow:0 8px 24px rgba(20,30,40,.16); }
+.wash-report-form .input-label { margin:0; }
+.wash-report-form .input-field { width:100%; }
+.wash-report-form button { justify-self:end; }
+[hidden] { display:none !important; }
+@media (max-width:760px) {
+  .wash-top-nav { justify-content:flex-start; }
+  .wash-search { align-items:stretch; flex-direction:column; }
+  .wash-search-button { width:100%; }
+  .wash-fields, .wash-fields-service { grid-template-columns:1fr; }
+}
+</style>
+{% endblock %}

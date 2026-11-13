@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Boleto de Venta</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; }
+        .empresa { text-align: center; margin-bottom: 30px; }
+        .titulo { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .seccion { margin-bottom: 20px; }
+        .label { font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #888; padding: 8px; }
+        th { background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <div class="empresa">
+        <div class="titulo">{{ empresa.nombre }}</div>
+        <div>{{ empresa.direccion }}</div>
+        <div>Tel: {{ empresa.telefono }} | Email: {{ empresa.email }}</div>
+        <hr>
+        <div style="font-size:18px; margin-top:10px;">BOLETO DE VENTA N° {{ venta.id }}</div>
+        <div>Fecha: {{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</div>
+    </div>
+
+    <div class="seccion">
+        <span class="label">Cliente:</span><br>
+        Nombre: {{ cliente.nombre }}<br>
+        Teléfono: {{ cliente.telefono }}<br>
+        Email: {{ cliente.email }}<br>
+        Domicilio: {{ cliente.domicilio }}, {{ cliente.localidad }}, {{ cliente.provincia }}
+    </div>
+
+    <div class="seccion">
+        <span class="label">Vehículo Vendido:</span>
+        <table>
+            <tr>
+                <th>Marca</th><th>Versión</th><th>Año</th><th>Dominio</th><th>Color</th><th>Precio Venta</th>
+            </tr>
+            <tr>
+                <td>{{ vehiculo.marca }}</td>
+                <td>{{ vehiculo.version }}</td>
+                <td>{{ vehiculo.año }}</td>
+                <td>{{ vehiculo.dominio }}</td>
+                <td>{{ vehiculo.color }}</td>
+                <td>$ {{ "{:,.2f}".format(venta.precio_vehiculo or vehiculo.precio_venta) }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="seccion">
+        <span class="label">Datos de la Operación:</span>
+        <table>
+            <tr><th>Precio vehículo</th><th>Bonificaciones</th><th>Total vehículo</th><th>Gestoría</th><th>Total Gral</th></tr>
+            <tr>
+                <td>$ {{ "{:,.2f}".format(venta.precio_vehiculo or venta.precio) }}</td>
+                <td>$ {{ "{:,.2f}".format(venta.bonificaciones or 0) }}</td>
+                <td>$ {{ "{:,.2f}".format(venta.total_vehiculo or venta.precio) }}</td>
+                <td>$ {{ "{:,.2f}".format(venta.gestoria or 0) }}</td>
+                <td>$ {{ "{:,.2f}".format(venta.total_general or venta.precio) }}</td>
+            </tr>
+        </table>
+        <table>
+            <tr><th>Seña</th><th>Contado</th><th>Toma Usado</th><th>Financiación Prendaria</th><th>Total</th></tr>
+            <tr>
+                <td>$ {{ "{:,.2f}".format(venta.senia or 0) }}</td>
+                <td>$ {{ "{:,.2f}".format(venta.entrega or 0) }}</td>
+                <td>$ {{ "{:,.2f}".format(venta.precio_toma or 0) }}<br>{{ venta.detalle_toma_usado or '-' }}</td>
+                <td>$ {{ "{:,.2f}".format(venta.monto_financiado or 0) }}<br>{{ venta.banco or '-' }}</td>
+                <td>$ {{ "{:,.2f}".format(venta.total_pago or 0) }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="seccion">
+        <span class="label">Vendedor:</span> {{ vendedor.nombre_completo }}
+    </div>
+
+    <div style="margin-top:40px; text-align:center; font-size:13px; color:#888;">
+        Gracias por confiar en {{ empresa.nombre }}
+    </div>
+</body>
+</html>

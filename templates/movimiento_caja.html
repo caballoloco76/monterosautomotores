@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block topbar_title %}Movimiento de Caja #{{ movimiento.id }}{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('caja') }}" class="btn btn-secondary">Volver a caja</a>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:820px;margin:0 auto;">
+  <div class="card-header"><strong>Detalle del movimiento</strong><span class="badge {{ 'badge-verde' if movimiento.tipo == 'ingreso' else 'badge-rojo' }}">{{ movimiento.tipo|capitalize }}</span></div>
+  <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div><div class="input-label">Importe</div><div style="font-size:28px;font-weight:700;color:{{ '#16803C' if movimiento.tipo == 'ingreso' else '#B42318' }};">$ {{ "{:,.2f}".format(movimiento.monto) }}</div></div>
+    <div><div class="input-label">Fecha y hora</div><div>{{ movimiento.fecha.strftime('%d/%m/%Y %H:%M:%S') }}</div></div>
+    <div><div class="input-label">Categoría</div><div>{{ movimiento.categoria }}</div></div>
+    <div><div class="input-label">Concepto</div><div>{{ movimiento.concepto }}</div></div>
+    <div><div class="input-label">Medio de pago</div><div>{{ movimiento.medio_pago }}</div></div>
+    <div><div class="input-label">Cuenta</div><div>{{ movimiento.cuenta }}</div></div>
+    <div><div class="input-label">Cliente</div><div>{{ movimiento.cliente.nombre if movimiento.cliente else 'No asociado' }}</div></div>
+    <div><div class="input-label">Proveedor</div><div>{{ movimiento.proveedor or 'No asociado' }}</div></div>
+    <div><div class="input-label">Vehículo</div><div>{% if movimiento.vehiculo %}#{{ movimiento.vehiculo.interno }} · {{ movimiento.vehiculo.marca }} {{ movimiento.vehiculo.version }} · {{ movimiento.vehiculo.dominio }}{% else %}No asociado{% endif %}</div></div>
+    <div><div class="input-label">Comprobante</div><div>{{ movimiento.comprobante or 'Sin comprobante' }}</div></div>
+    <div><div class="input-label">Registrado por</div><div>{{ movimiento.usuario.nombre_completo or movimiento.usuario.username }}</div></div>
+    <div><div class="input-label">Estado</div><div>{{ movimiento.estado|capitalize }}</div></div>
+    <div style="grid-column:span 2;"><div class="input-label">Observaciones</div><div style="white-space:pre-line;">{{ movimiento.observaciones or 'Sin observaciones' }}</div></div>
+    {% if movimiento.estado == 'anulado' %}<div style="grid-column:span 2;background:#FEF2F2;padding:14px;border-radius:7px;color:#991B1B;"><strong>Movimiento anulado</strong><br>Fecha: {{ movimiento.fecha_anulacion.strftime('%d/%m/%Y %H:%M') if movimiento.fecha_anulacion else '—' }}<br>Motivo: {{ movimiento.motivo_anulacion or '—' }}</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

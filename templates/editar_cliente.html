@@ -1,0 +1,113 @@
+{% extends "layout.html" %}
+{% block topbar_title %}Editar Cliente #{{ c.interno }}{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:900px; margin:0 auto;">
+  <div class="card-header">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">
+      Editando: {{ c.nombre }}
+    </span>
+    <a href="/clientes" class="btn btn-secondary btn-sm">← Volver</a>
+  </div>
+  <div class="card-body">
+    <form method="POST" style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;">
+
+      <div>
+        <label class="input-label">Nombre y Apellido</label>
+        <input name="nombre" value="{{ c.nombre }}" class="input-field" required>
+      </div>
+      <div>
+        <label class="input-label">DNI</label>
+        <input name="dni" value="{{ c.dni or '' }}" class="input-field" placeholder="Ej: 30123456">
+      </div>
+      <div>
+        <label class="input-label">Teléfono</label>
+        <input name="telefono" value="{{ c.telefono }}" class="input-field">
+      </div>
+
+      <div>
+        <label class="input-label">Email</label>
+        <input name="email" type="email" value="{{ c.email }}" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Origen del dato</label>
+        <select name="origen_cliente" class="input-field" required>
+          <option value="">Seleccionar...</option>
+          {% for origen in ['Facebook', 'Instagram', 'TikTok', 'Referido', 'Propio', 'Mercado Libre', 'Proactivación'] %}
+          <option value="{{ origen }}" {{ 'selected' if c.origen_cliente == origen }}>{{ origen }}</option>
+          {% endfor %}
+          {% if c.origen_cliente and c.origen_cliente not in ['Facebook', 'Instagram', 'TikTok', 'Referido', 'Propio', 'Mercado Libre', 'Proactivación'] %}
+          <option selected>{{ c.origen_cliente }}</option>
+          {% endif %}
+        </select>
+      </div>
+      <div>
+        <label class="input-label">Domicilio</label>
+        <input name="domicilio" value="{{ c.domicilio }}" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Localidad</label>
+        <input name="localidad" value="{{ c.localidad }}" class="input-field">
+      </div>
+
+      <div>
+        <label class="input-label">Provincia</label>
+        <select name="provincia" class="input-field">
+          {% for p in ['Buenos Aires','CABA','Catamarca','Chaco','Chubut','Córdoba','Corrientes','Entre Ríos','Formosa','Jujuy','La Pampa','La Rioja','Mendoza','Misiones','Neuquén','Río Negro','Salta','San Juan','San Luis','Santa Cruz','Santa Fe','Santiago del Estero','Tierra del Fuego','Tucumán'] %}
+          <option {{ 'selected' if c.provincia == p }}>{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="input-label">¿Tiene usado?</label>
+        <select name="usado" class="input-field">
+          <option value="No" {{ 'selected' if c.tiene_usado == 'No' }}>No</option>
+          <option value="Si" {{ 'selected' if c.tiene_usado == 'Si' }}>Sí</option>
+        </select>
+      </div>
+      <div>
+        <label class="input-label">Detalle del usado</label>
+        <input name="detalle_usado" value="{{ c.usado_detalle }}" class="input-field">
+      </div>
+
+      <div>
+        <label class="input-label">Vehículo de interés</label>
+        <input name="interes" value="{{ c.interes }}" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Próximo contacto</label>
+        <input type="date" name="proximo" value="{{ c.proximo_contacto }}" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Estado</label>
+        <select name="estado" class="input-field">
+          {% for e in ['Nuevo','En seguimiento','Caliente','Vendido','NO COMPRA'] %}
+          <option {{ 'selected' if c.estado == e }}>{{ e }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if session.get('rol') == 'admin' %}
+      <div>
+        <label class="input-label">Vendedor asignado</label>
+        <select name="vendedor_id" class="input-field">
+          <option value="">Sin asignar</option>
+          {% for vendedor in vendedores %}
+          <option value="{{ vendedor.id }}" {{ 'selected' if c.vendedor_id == vendedor.id }}>{{ vendedor.nombre_completo or vendedor.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div style="grid-column:span 3;">
+        <label class="input-label">Motivo de NO COMPRA</label>
+        <textarea name="motivo_no_compra" rows="2" class="input-field" style="resize:vertical;">{{ c.motivo_no_compra or '' }}</textarea>
+      </div>
+
+      <div style="grid-column:span 3; display:flex; justify-content:flex-end; gap:10px; margin-top:4px;">
+        <a href="/clientes" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,206 @@
+{% extends "layout.html" %}
+{% block topbar_title %}Finalizar Operación #{{ venta.numero_operacion }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/ventas/ver/{{ venta.id }}" class="btn btn-secondary btn-sm">← Volver</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
+
+  <!-- AVISO SEÑA REGISTRADA -->
+  <div style="background:#FFFBEB; border:2px solid #F59E0B; border-radius:12px; padding:18px 22px; display:flex; align-items:center; gap:16px;">
+    <div style="font-size:32px;">🤝</div>
+    <div style="flex:1;">
+      <div style="font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:700; color:#92400E;">Completar Cancelación de la Operación</div>
+      <div style="font-size:13px; color:#92400E; margin-top:3px;">
+        Total registrado: <strong>$ {{ "{:,.0f}".format(total_cobrado if total_cobrado is defined else venta.entrega or 0) }}</strong> ·
+        Precio acordado: <strong>$ {{ "{:,.0f}".format(venta.precio) }}</strong> ·
+        Saldo a cancelar: <strong>$ {{ "{:,.0f}".format(saldo) }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATOS DE LA OPERACIÓN (solo lectura) -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Datos de la Operación</span>
+      <span class="badge badge-naranja">Reserva #{{ venta.numero_operacion }}</span>
+    </div>
+    <div class="card-body" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+      <div>
+        <div class="input-label">Cliente</div>
+        <div style="font-weight:700; font-size:15px;">{{ cliente.nombre }}</div>
+        <div style="font-size:12px; color:#888;">{{ cliente.telefono or '' }}</div>
+      </div>
+      <div>
+        <div class="input-label">Vehículo</div>
+        <div style="font-weight:700; font-size:15px;">{{ vehiculo.marca }} {{ vehiculo.version }}</div>
+        <div style="font-size:12px; font-family:'Rajdhani',sans-serif; font-weight:600; letter-spacing:0.05em; color:#555;">{{ vehiculo.dominio }}</div>
+      </div>
+      <div>
+        <div class="input-label">Vendedor</div>
+        <div style="font-weight:600; font-size:14px;">{{ vendedor.nombre_completo or vendedor.username }}</div>
+        <div style="font-size:12px; color:#888;">{{ venta.fecha.strftime('%d/%m/%Y') if venta.fecha else '' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEÑA YA ENTREGADA (readonly) -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Pagos ya registrados</span>
+    </div>
+    <div class="card-body">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#FEF3C7; border-radius:8px; border:1px solid #FDE68A;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:22px;">💵</span>
+          <div>
+            <div style="font-weight:700; color:#92400E;">Total registrado</div>
+            {% if venta.observaciones_senia %}<div style="font-size:12px; color:#B45309;">{{ venta.observaciones_senia }}</div>{% endif %}
+          </div>
+        </div>
+        <div style="font-family:'Rajdhani',sans-serif; font-size:24px; font-weight:700; color:#F59E0B;">$ {{ "{:,.0f}".format(total_cobrado) }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SALDO RESTANTE: FORMAS DE PAGO -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Cancelación del Saldo Restante</span>
+      <span style="font-size:13px; color:#C0272D; font-weight:700;">Saldo: $ {{ "{:,.0f}".format(saldo) }}</span>
+    </div>
+    <div class="card-body">
+      <form method="POST" id="formFinalizar" style="display:flex; flex-direction:column; gap:16px;">
+
+        <!-- EFECTIVO -->
+        <div style="border:1.5px solid #E0E0E0; border-radius:8px; overflow:hidden;">
+          <div style="background:#F8F8F8; padding:10px 16px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #E8E8E8;">
+            <input type="checkbox" id="chkEfectivo" onchange="toggleBloque('efectivo')" style="width:16px; height:16px; accent-color:#C0272D; cursor:pointer;">
+            <label for="chkEfectivo" style="font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">💰 Efectivo</label>
+          </div>
+          <div id="bloqueEfectivo" style="display:none; padding:14px 16px;">
+            <label class="input-label">Monto $</label>
+            <input type="number" name="efectivo" id="efectivo" class="input-field" placeholder="0" min="0" value="0" oninput="recalcular()">
+          </div>
+        </div>
+
+        <!-- USADO -->
+        <div style="border:1.5px solid #E0E0E0; border-radius:8px; overflow:hidden;">
+          <div style="background:#F8F8F8; padding:10px 16px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #E8E8E8;">
+            <input type="checkbox" id="chkUsado" name="toma_usado" onchange="toggleBloque('usado')" style="width:16px; height:16px; accent-color:#C0272D; cursor:pointer;">
+            <label for="chkUsado" style="font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">🔄 Entrega de Usado</label>
+          </div>
+          <div id="bloqueUsado" style="display:none; padding:14px 16px; display:none; grid-template-columns:1fr 1fr; gap:14px;">
+            <div>
+              <label class="input-label">Valor de Toma $</label>
+              <input type="number" name="precio_toma" id="precioToma" class="input-field" placeholder="0" min="0" value="0" oninput="recalcular()">
+            </div>
+            <div>
+              <label class="input-label">Detalle del vehículo</label>
+              <input type="text" name="detalle_toma_usado" class="input-field" placeholder="Marca, modelo, año, dominio..." value="{{ venta.detalle_toma_usado or '' }}">
+            </div>
+          </div>
+        </div>
+
+        <!-- CRÉDITO BANCARIO -->
+        <div style="border:1.5px solid #E0E0E0; border-radius:8px; overflow:hidden;">
+          <div style="background:#F8F8F8; padding:10px 16px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #E8E8E8;">
+            <input type="checkbox" id="chkCredito" onchange="toggleBloque('credito')" style="width:16px; height:16px; accent-color:#C0272D; cursor:pointer;">
+            <label for="chkCredito" style="font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">🏦 Crédito Bancario</label>
+          </div>
+          <div id="bloqueCredito" style="display:none; padding:14px 16px; display:none; grid-template-columns:1fr 1fr; gap:14px;">
+            <div>
+              <label class="input-label">Monto Financiado $</label>
+              <input type="number" name="financiado" id="financiado" class="input-field" placeholder="0" min="0" value="0" oninput="recalcular()">
+            </div>
+            <div>
+              <label class="input-label">Banco / Financiera</label>
+              <input type="text" name="banco" class="input-field" placeholder="Banco Nación, ICBC..." value="{{ venta.banco or '' }}">
+            </div>
+          </div>
+        </div>
+
+        <!-- OBSERVACIONES -->
+        <div>
+          <label class="input-label">Observaciones finales</label>
+          <input type="text" name="observaciones" class="input-field" placeholder="Notas adicionales..." value="{{ venta.observaciones or '' }}">
+        </div>
+
+        <!-- SALDO EN TIEMPO REAL -->
+        <div id="saldoBox" style="border-radius:10px; padding:16px; background:#FEF2F2; display:grid; grid-template-columns:1fr auto; align-items:center; gap:12px;">
+          <div>
+            <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#888; margin-bottom:4px;">Saldo Pendiente</div>
+            <div style="font-size:12px; color:#888;">Saldo actual: $ {{ "{:,.0f}".format(saldo) }} + Pago ahora = $ 0</div>
+          </div>
+          <div id="saldoVal" style="font-family:'Rajdhani',sans-serif; font-size:34px; font-weight:700; color:#C0272D;">
+            $ {{ "{:,.0f}".format(saldo) }}
+          </div>
+        </div>
+
+        <!-- BOTÓN FINALIZAR -->
+        <button type="submit" id="btnFinalizar"
+                style="width:100%; padding:16px; font-size:18px; border-radius:8px; font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; border:none; background:#E0E0E0; color:#AAA; transition:all 0.3s;" disabled>
+          ✅ Confirmar y Finalizar Venta
+        </button>
+        <div style="font-size:11px; color:#BBB; text-align:center; margin-top:-6px;">El saldo debe ser $ 0 para finalizar</div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const saldoBase  = {{ saldo or 0 }};
+
+function toggleBloque(tipo) {
+  const map = { efectivo:'Efectivo', usado:'Usado', credito:'Credito' };
+  const chk    = document.getElementById('chk' + map[tipo]);
+  const bloque = document.getElementById('bloque' + map[tipo]);
+  if (tipo === 'usado' || tipo === 'credito') {
+    bloque.style.display = chk.checked ? 'grid' : 'none';
+  } else {
+    bloque.style.display = chk.checked ? 'block' : 'none';
+  }
+  if (!chk.checked) bloque.querySelectorAll('input[type="number"]').forEach(i => i.value = 0);
+  recalcular();
+}
+
+function recalcular() {
+  const efectivo = document.getElementById('chkEfectivo').checked ? parseFloat(document.getElementById('efectivo').value || 0) : 0;
+  const usado    = document.getElementById('chkUsado').checked    ? parseFloat(document.getElementById('precioToma').value || 0) : 0;
+  const credito  = document.getElementById('chkCredito').checked  ? parseFloat(document.getElementById('financiado').value || 0) : 0;
+
+  const totalAhora = efectivo + usado + credito;
+  const saldo      = saldoBase - totalAhora;
+
+  const fmt = n => '$ ' + Math.round(Math.abs(n)).toLocaleString('es-AR');
+  const saldoEl  = document.getElementById('saldoVal');
+  const saldoBox = document.getElementById('saldoBox');
+  const btn      = document.getElementById('btnFinalizar');
+
+  saldoEl.textContent = (saldo < 0 ? '— ' : '') + fmt(saldo);
+
+  if (Math.round(saldo) === 0) {
+    saldoEl.style.color = '#16A34A';
+    saldoBox.style.background = '#F0FDF4';
+    btn.disabled = false;
+    btn.style.background = '#16A34A';
+    btn.style.color = 'white';
+  } else if (saldo < 0) {
+    saldoEl.style.color = '#F59E0B';
+    saldoBox.style.background = '#FFFBEB';
+    btn.disabled = true; btn.style.background = '#E0E0E0'; btn.style.color = '#AAA';
+  } else {
+    saldoEl.style.color = '#C0272D';
+    saldoBox.style.background = '#FEF2F2';
+    btn.disabled = true; btn.style.background = '#E0E0E0'; btn.style.color = '#AAA';
+  }
+}
+
+recalcular();
+</script>
+
+{% endblock %}

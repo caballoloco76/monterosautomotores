@@ -1,0 +1,18 @@
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+
+/instance/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+
+*.rar
+*.zip
+/archivos de prueba/
+/rar/
+
+/app 1.py
+/models 1.py

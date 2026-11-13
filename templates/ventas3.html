@@ -1,0 +1,624 @@
+{% extends "layout.html" %}
+
+{% block topbar_title %}Registrar Nueva Venta{% endblock %}
+
+{% block topbar_actions %}
+<a href="/historial" class="btn btn-secondary">Ver historial</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- MODAL NUEVO CLIENTE -->
+<div id="modalCliente" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:14px; width:700px; max-width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="padding:20px 24px; border-bottom:1px solid #F0F0F0; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:white; z-index:1; border-radius:14px 14px 0 0;">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:700;">Nuevo Cliente</span>
+      <button onclick="cerrarModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#888; line-height:1;">✕</button>
+    </div>
+    <div style="padding:24px;">
+      <form id="formNuevoCliente" method="POST" action="/clientes" style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;">
+        <input type="hidden" name="_redirect" value="/ventas">
+        <div>
+          <label class="input-label">Nombre y Apellido *</label>
+          <input name="nombre" class="input-field" required>
+        </div>
+        <div>
+          <label class="input-label">DNI</label>
+          <input name="dni" class="input-field" placeholder="Ej: 30123456">
+        </div>
+        <div>
+          <label class="input-label">Teléfono</label>
+          <input name="telefono" class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Email</label>
+          <input name="email" type="email" class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Domicilio</label>
+          <input name="domicilio" class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Localidad</label>
+          <input name="localidad" class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Provincia</label>
+          <select name="provincia" class="input-field">
+            <option value="">Seleccionar...</option>
+            {% for p in ['Buenos Aires','CABA','Catamarca','Chaco','Chubut','Córdoba','Corrientes','Entre Ríos','Formosa','Jujuy','La Pampa','La Rioja','Mendoza','Misiones','Neuquén','Río Negro','Salta','San Juan','San Luis','Santa Cruz','Santa Fe','Santiago del Estero','Tierra del Fuego','Tucumán'] %}
+            <option>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="input-label">¿Tiene usado?</label>
+          <select name="usado" class="input-field">
+            <option value="No">No</option>
+            <option value="Si">Sí</option>
+          </select>
+        </div>
+        <div>
+          <label class="input-label">Detalle del usado</label>
+          <input name="detalle_usado" placeholder="Marca, modelo, año..." class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Vehículo de interés</label>
+          <input name="interes" class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Próximo contacto</label>
+          <input type="date" name="proximo" class="input-field">
+        </div>
+        <div>
+          <label class="input-label">Estado</label>
+          <select name="estado" class="input-field">
+            <option value="Nuevo">Nuevo</option>
+            <option value="En seguimiento">En seguimiento</option>
+          </select>
+        </div>
+        <div style="grid-column:span 3;">
+          <label class="input-label">Notas</label>
+          <input name="descripcion" class="input-field">
+        </div>
+        <div style="grid-column:span 3; display:flex; justify-content:flex-end; gap:10px; margin-top:6px;">
+          <button type="button" onclick="cerrarModal()" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Cliente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ALERTA MODAL SALDO -->
+<div id="modalSaldo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:14px; width:420px; max-width:95vw; box-shadow:0 20px 60px rgba(0,0,0,0.3); overflow:hidden;">
+    <div style="background:#C0272D; padding:20px 24px;">
+      <div style="font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:white; display:flex; align-items:center; gap:10px;">
+        ⚠ Saldos Pendientes
+      </div>
+    </div>
+    <div style="padding:24px;">
+      <p style="font-size:15px; color:#333; margin-bottom:8px; line-height:1.6;">
+        <strong>Existen saldos pendientes.</strong> Deje la cuenta en <strong>$ 0</strong> para finalizar la operación.
+      </p>
+      <p style="font-size:13px; color:#888; margin-bottom:20px;">
+        Saldo restante: <span id="saldoPendienteModal" style="font-weight:700; color:#C0272D;"></span>
+      </p>
+      <div style="display:flex; justify-content:flex-end;">
+        <button onclick="cerrarModalSaldo()" class="btn btn-primary">Entendido</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<form method="POST" id="formVenta" onsubmit="return validarYEnviar(event)">
+
+<div style="display:grid; grid-template-columns:1fr 380px; gap:20px; align-items:start;">
+
+  <!-- COLUMNA IZQUIERDA -->
+  <div style="display:flex; flex-direction:column; gap:20px;">
+
+    <!-- BLOQUE 1: CLIENTE -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">
+          <span style="background:#C0272D; color:white; border-radius:50%; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; font-size:13px; margin-right:8px;">1</span>
+          Cliente
+        </span>
+        <span style="font-size:12px; color:#888;">N° Op: <strong id="nroOpDisplay" style="color:#C0272D; font-family:'Rajdhani',sans-serif; font-size:15px;">{{ proximo_numero }}</strong></span>
+      </div>
+      <div class="card-body">
+        <input type="hidden" name="numero_operacion" value="{{ proximo_numero }}">
+
+        <!-- BUSCADOR -->
+        <div style="margin-bottom:14px;">
+          <label class="input-label">Buscar cliente</label>
+          <div style="position:relative;">
+            <input type="text" id="buscadorCliente" placeholder="Nombre, DNI, teléfono..."
+                   class="input-field" autocomplete="off"
+                   oninput="buscarCliente(this.value)"
+                   style="padding-right:40px;">
+            <div style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:#BBB; font-size:16px;">🔍</div>
+            <!-- DROPDOWN RESULTADOS -->
+            <div id="dropdownClientes" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1.5px solid #E0E0E0; border-top:none; border-radius:0 0 8px 8px; z-index:200; max-height:220px; overflow-y:auto; box-shadow:0 8px 24px rgba(0,0,0,0.1);">
+            </div>
+          </div>
+        </div>
+
+        <!-- CLIENTE SELECCIONADO -->
+        <div id="clienteSeleccionado" style="display:none; background:#F8F8F8; border-radius:8px; padding:14px 16px; border:1.5px solid #E0E0E0; position:relative;">
+          <button type="button" onclick="limpiarCliente()" style="position:absolute; top:10px; right:10px; background:none; border:none; cursor:pointer; color:#AAA; font-size:16px;" title="Cambiar cliente">✕</button>
+          <input type="hidden" name="cliente" id="clienteIdInput">
+          <div id="clienteNombre" style="font-weight:700; font-size:15px; color:#1A1A1A;"></div>
+          <div id="clienteInfo" style="font-size:12px; color:#888; margin-top:3px;"></div>
+        </div>
+
+        <div id="sinClienteMsg" style="font-size:13px; color:#AAA; margin-top:4px; display:none;">
+          No se encontraron resultados.
+        </div>
+
+        <button type="button" onclick="abrirModal()" style="margin-top:12px;" class="btn btn-secondary btn-sm">
+          + Registrar nuevo cliente
+        </button>
+      </div>
+    </div>
+
+    <!-- BLOQUE 2: VEHÍCULO Y PRECIO -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">
+          <span style="background:#C0272D; color:white; border-radius:50%; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; font-size:13px; margin-right:8px;">2</span>
+          Vehículo y Precio de la Unidad
+        </span>
+      </div>
+      <div class="card-body" style="display:grid; gap:16px;">
+
+        <div>
+          <label class="input-label">Vehículo *</label>
+          <select name="vehiculo" id="selectVehiculo" class="input-field" required onchange="onVehiculoChange()">
+            <option value="">Seleccionar vehículo disponible...</option>
+            {% for v in vehiculos %}
+            <option value="{{ v.id }}" data-precio="{{ v.precio_venta }}"
+                    data-desc="{{ v.marca }} {{ v.version }} ({{ v.año }}) — Dom: {{ v.dominio }}">
+              #{{ v.interno }} — {{ v.marca }} {{ v.version }} {{ v.año }} · {{ v.dominio }} · $ {{ "{:,.0f}".format(v.precio_venta) }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">
+          <div>
+            <label class="input-label">Precio de Lista $</label>
+            <input type="number" id="precioLista" name="precio_lista" class="input-field" readonly
+                   style="background:#F8F8F8; color:#888;" placeholder="—">
+          </div>
+          <div>
+            <label class="input-label">Descuento $</label>
+            <input type="number" id="descuento" name="descuento" class="input-field" placeholder="0"
+                   oninput="recalcularPrecios()" min="0" value="0">
+          </div>
+          <div>
+            <label class="input-label">Gastos de Gestoría $</label>
+            <input type="number" id="gestoria" name="gestoria" class="input-field" placeholder="0"
+                   oninput="recalcularPrecios()" min="0" value="0">
+          </div>
+        </div>
+
+        <!-- PRECIO TOTAL UNIDAD -->
+        <div style="background:#1A1A1A; border-radius:8px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:3px;">Precio Total de la Unidad</div>
+            <div style="font-size:11px; color:#666;">Precio de lista − descuento + gestoría</div>
+          </div>
+          <div id="precioTotalUnidad" style="font-family:'Rajdhani',sans-serif; font-size:26px; font-weight:700; color:#C0272D;">$ —</div>
+        </div>
+        <input type="hidden" name="precio_total_unidad" id="hiddenPrecioTotal">
+
+      </div>
+    </div>
+
+    <!-- BLOQUE 3: FORMA DE PAGO -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">
+          <span style="background:#C0272D; color:white; border-radius:50%; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; font-size:13px; margin-right:8px;">3</span>
+          Forma de Pago
+        </span>
+      </div>
+      <div class="card-body" style="display:flex; flex-direction:column; gap:16px;">
+
+        <!-- ANTICIPO -->
+        <div style="border:1.5px solid #E0E0E0; border-radius:8px; overflow:hidden;">
+          <div style="background:#F8F8F8; padding:10px 16px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #E8E8E8;">
+            <input type="checkbox" id="chkAnticipo" onchange="togglePago('anticipo'); recalcularPagos()" style="width:16px; height:16px; accent-color:#C0272D; cursor:pointer;">
+            <label for="chkAnticipo" style="font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">💵 Anticipo / Seña</label>
+          </div>
+          <div id="bloqueAnticipo" style="display:none; padding:14px 16px; display:none;">
+            <label class="input-label">Monto $</label>
+            <input type="number" name="anticipo" id="anticipo" class="input-field" placeholder="0" min="0" value="0" oninput="recalcularPagos()">
+          </div>
+        </div>
+
+        <!-- EFECTIVO -->
+        <div style="border:1.5px solid #E0E0E0; border-radius:8px; overflow:hidden;">
+          <div style="background:#F8F8F8; padding:10px 16px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #E8E8E8;">
+            <input type="checkbox" id="chkEfectivo" onchange="togglePago('efectivo'); recalcularPagos()" style="width:16px; height:16px; accent-color:#C0272D; cursor:pointer;">
+            <label for="chkEfectivo" style="font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">💰 Efectivo</label>
+          </div>
+          <div id="bloqueEfectivo" style="display:none; padding:14px 16px;">
+            <label class="input-label">Monto $</label>
+            <input type="number" name="efectivo" id="efectivo" class="input-field" placeholder="0" min="0" value="0" oninput="recalcularPagos()">
+          </div>
+        </div>
+
+        <!-- USADO -->
+        <div style="border:1.5px solid #E0E0E0; border-radius:8px; overflow:hidden;">
+          <div style="background:#F8F8F8; padding:10px 16px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #E8E8E8;">
+            <input type="checkbox" id="chkUsado" name="toma_usado" onchange="togglePago('usado'); recalcularPagos()" style="width:16px; height:16px; accent-color:#C0272D; cursor:pointer;">
+            <label for="chkUsado" style="font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">🔄 Entrega de Usado</label>
+          </div>
+          <div id="bloqueUsado" style="display:none; padding:14px 16px; display:none; gap:14px; grid-template-columns:1fr 1fr;">
+            <div>
+              <label class="input-label">Valor de Toma $</label>
+              <input type="number" name="precio_toma" id="precioToma" class="input-field" placeholder="0" min="0" value="0" oninput="recalcularPagos()">
+            </div>
+            <div>
+              <label class="input-label">Detalle del Vehículo</label>
+              <input type="text" name="detalle_usado_venta" class="input-field" placeholder="Marca, modelo, año, dominio...">
+            </div>
+          </div>
+        </div>
+
+        <!-- CRÉDITO BANCARIO -->
+        <div style="border:1.5px solid #E0E0E0; border-radius:8px; overflow:hidden;">
+          <div style="background:#F8F8F8; padding:10px 16px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #E8E8E8;">
+            <input type="checkbox" id="chkCredito" onchange="togglePago('credito'); recalcularPagos()" style="width:16px; height:16px; accent-color:#C0272D; cursor:pointer;">
+            <label for="chkCredito" style="font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">🏦 Crédito Bancario</label>
+          </div>
+          <div id="bloqueCredito" style="display:none; padding:14px 16px; display:none; gap:14px; grid-template-columns:1fr 1fr;">
+            <div>
+              <label class="input-label">Monto Financiado $</label>
+              <input type="number" name="financiado" id="financiado" class="input-field" placeholder="0" min="0" value="0" oninput="recalcularPagos()">
+            </div>
+            <div>
+              <label class="input-label">Banco / Financiera</label>
+              <input type="text" name="banco" class="input-field" placeholder="Banco Nación, ICBC...">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COLUMNA DERECHA: RESUMEN -->
+  <div style="position:sticky; top:80px; display:flex; flex-direction:column; gap:16px;">
+
+    <!-- RESUMEN OPERACIÓN -->
+    <div class="card" style="overflow:visible;">
+      <div class="card-header" style="background:#1A1A1A; border-radius:12px 12px 0 0;">
+        <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700; color:white;">Resumen de Operación</span>
+        <span id="resumenNroOp" style="font-size:12px; color:#666; font-family:'Rajdhani',sans-serif;">Op #{{ proximo_numero }}</span>
+      </div>
+      <div class="card-body" style="padding:18px;">
+
+        <div id="vehiculoDescResumen" style="font-size:12px; color:#AAA; margin-bottom:16px; min-height:16px; font-style:italic;">
+          Seleccioná un vehículo
+        </div>
+
+        <!-- PRECIOS -->
+        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid #F0F0F0;">
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span style="color:#888;">Precio de lista</span>
+            <span id="rLista" style="font-weight:600; font-family:'Rajdhani',sans-serif; font-size:15px;">$ —</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span style="color:#888;">Descuento</span>
+            <span id="rDescuento" style="font-weight:600; color:#C0272D; font-family:'Rajdhani',sans-serif; font-size:15px;">— $ —</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span style="color:#888;">Gastos de gestoría</span>
+            <span id="rGestoria" style="font-weight:600; color:#F59E0B; font-family:'Rajdhani',sans-serif; font-size:15px;">+ $ —</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px; padding-top:8px; border-top:1px dashed #EEE;">
+            <span style="font-weight:700; color:#1A1A1A;">Total unidad</span>
+            <span id="rTotalUnidad" style="font-weight:700; font-family:'Rajdhani',sans-serif; font-size:17px; color:#1A1A1A;">$ —</span>
+          </div>
+        </div>
+
+        <!-- PAGOS -->
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#888; margin-bottom:8px;">Forma de Pago</div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid #F0F0F0;">
+          <div id="rowAnticipo" style="display:none; justify-content:space-between; font-size:13px;">
+            <span style="color:#888;">💵 Anticipo</span>
+            <span id="rAnticipo" style="font-weight:600; color:#16A34A; font-family:'Rajdhani',sans-serif; font-size:14px;"></span>
+          </div>
+          <div id="rowEfectivo" style="display:none; justify-content:space-between; font-size:13px;">
+            <span style="color:#888;">💰 Efectivo</span>
+            <span id="rEfectivo" style="font-weight:600; color:#16A34A; font-family:'Rajdhani',sans-serif; font-size:14px;"></span>
+          </div>
+          <div id="rowUsado" style="display:none; justify-content:space-between; font-size:13px;">
+            <span style="color:#888;">🔄 Usado</span>
+            <span id="rUsado" style="font-weight:600; color:#F59E0B; font-family:'Rajdhani',sans-serif; font-size:14px;"></span>
+          </div>
+          <div id="rowCredito" style="display:none; justify-content:space-between; font-size:13px;">
+            <span style="color:#888;">🏦 Crédito</span>
+            <span id="rCredito" style="font-weight:600; color:#3B82F6; font-family:'Rajdhani',sans-serif; font-size:14px;"></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px; padding-top:6px; border-top:1px dashed #EEE;">
+            <span style="color:#888;">Total pagado</span>
+            <span id="rTotalPagado" style="font-weight:700; color:#16A34A; font-family:'Rajdhani',sans-serif; font-size:15px;">$ 0</span>
+          </div>
+        </div>
+
+        <!-- SALDO -->
+        <div id="saldoBox" style="border-radius:10px; padding:16px; text-align:center; background:#F8F8F8; margin-bottom:18px; transition:all 0.3s;">
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#888; margin-bottom:6px;">Saldo Pendiente</div>
+          <div id="saldoPendiente" style="font-family:'Rajdhani',sans-serif; font-size:32px; font-weight:700; color:#AAA; transition:color 0.3s;">$ —</div>
+        </div>
+
+        <!-- BOTÓN FINALIZAR -->
+        <button type="submit" id="btnFinalizar"
+                style="width:100%; padding:15px; font-size:17px; border-radius:8px; font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; border:none; background:#E0E0E0; color:#AAA; transition:all 0.3s;" disabled>
+          ✅ Finalizar Venta
+        </button>
+        <div style="font-size:11px; color:#BBB; text-align:center; margin-top:8px;">
+          El saldo debe ser $ 0 para finalizar
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</form>
+
+<script>
+// ─── DATOS CLIENTES ───────────────────────────────────
+const clientesData = [
+  {% for c in clientes %}
+  {
+    id: {{ c.id }},
+    nombre: {{ c.nombre | tojson }},
+    dni: {{ (c.dni or '') | tojson }},
+    telefono: {{ (c.telefono or '') | tojson }},
+    email: {{ (c.email or '') | tojson }},
+    localidad: {{ (c.localidad or '') | tojson }}
+  },
+  {% endfor %}
+];
+
+let clienteActivo = null;
+let precioLista = 0;
+
+// ─── BUSCADOR CLIENTES ────────────────────────────────
+function buscarCliente(q) {
+  const drop = document.getElementById('dropdownClientes');
+  const sinMsg = document.getElementById('sinClienteMsg');
+  q = q.trim().toLowerCase();
+
+  if (q.length < 2) {
+    drop.style.display = 'none';
+    sinMsg.style.display = 'none';
+    return;
+  }
+
+  const resultados = clientesData.filter(c =>
+    c.nombre.toLowerCase().includes(q) ||
+    c.dni.includes(q) ||
+    c.telefono.includes(q)
+  ).slice(0, 8);
+
+  if (resultados.length === 0) {
+    drop.style.display = 'none';
+    sinMsg.style.display = 'block';
+    return;
+  }
+
+  sinMsg.style.display = 'none';
+  drop.innerHTML = resultados.map(c => `
+    <div onclick="seleccionarCliente(${c.id})"
+         style="padding:10px 14px; cursor:pointer; border-bottom:1px solid #F5F5F5; transition:background 0.1s;"
+         onmouseover="this.style.background='#FEF2F2'"
+         onmouseout="this.style.background='white'">
+      <div style="font-weight:600; font-size:14px;">${c.nombre}</div>
+      <div style="font-size:11px; color:#999;">
+        ${c.dni ? 'DNI: ' + c.dni + ' · ' : ''}${c.telefono || ''} ${c.localidad ? '· ' + c.localidad : ''}
+      </div>
+    </div>
+  `).join('');
+  drop.style.display = 'block';
+}
+
+function seleccionarCliente(id) {
+  const c = clientesData.find(x => x.id === id);
+  if (!c) return;
+  clienteActivo = c;
+  document.getElementById('clienteIdInput').value = c.id;
+  document.getElementById('clienteNombre').textContent = c.nombre;
+  document.getElementById('clienteInfo').textContent =
+    [c.dni ? 'DNI: ' + c.dni : '', c.telefono, c.localidad].filter(Boolean).join(' · ');
+  document.getElementById('clienteSeleccionado').style.display = 'block';
+  document.getElementById('buscadorCliente').style.display = 'none';
+  document.getElementById('dropdownClientes').style.display = 'none';
+  document.getElementById('sinClienteMsg').style.display = 'none';
+}
+
+function limpiarCliente() {
+  clienteActivo = null;
+  document.getElementById('clienteIdInput').value = '';
+  document.getElementById('clienteSeleccionado').style.display = 'none';
+  document.getElementById('buscadorCliente').style.display = 'block';
+  document.getElementById('buscadorCliente').value = '';
+  document.getElementById('buscadorCliente').focus();
+}
+
+document.addEventListener('click', function(e) {
+  const buscador = document.getElementById('buscadorCliente');
+  const drop = document.getElementById('dropdownClientes');
+  if (!buscador.contains(e.target) && !drop.contains(e.target)) {
+    drop.style.display = 'none';
+  }
+});
+
+// ─── VEHÍCULO ─────────────────────────────────────────
+function onVehiculoChange() {
+  const sel = document.getElementById('selectVehiculo');
+  const opt = sel.options[sel.selectedIndex];
+  precioLista = parseFloat(opt?.dataset?.precio || 0);
+  const desc = opt?.dataset?.desc || '';
+  document.getElementById('precioLista').value = precioLista || '';
+  document.getElementById('vehiculoDescResumen').textContent = desc || 'Seleccioná un vehículo';
+  recalcularPrecios();
+}
+
+// ─── PRECIOS UNIDAD ───────────────────────────────────
+function recalcularPrecios() {
+  const descuento = parseFloat(document.getElementById('descuento').value || 0);
+  const gestoria = parseFloat(document.getElementById('gestoria').value || 0);
+  const total = precioLista - descuento + gestoria;
+
+  document.getElementById('hiddenPrecioTotal').value = total;
+
+  const fmt = n => '$ ' + Math.max(0, n).toLocaleString('es-AR', {maximumFractionDigits:0});
+
+  document.getElementById('precioTotalUnidad').textContent = precioLista ? fmt(total) : '$ —';
+  document.getElementById('rLista').textContent = precioLista ? fmt(precioLista) : '$ —';
+  document.getElementById('rDescuento').textContent = precioLista ? '− ' + fmt(descuento) : '— $ —';
+  document.getElementById('rGestoria').textContent = precioLista ? '+ ' + fmt(gestoria) : '+ $ —';
+  document.getElementById('rTotalUnidad').textContent = precioLista ? fmt(total) : '$ —';
+
+  recalcularPagos();
+}
+
+// ─── PAGOS ────────────────────────────────────────────
+function togglePago(tipo) {
+  const chk = document.getElementById('chk' + capitalize(tipo));
+  const bloque = document.getElementById('bloque' + capitalize(tipo));
+  if (chk.checked) {
+    bloque.style.display = tipo === 'usado' || tipo === 'credito' ? 'grid' : 'block';
+  } else {
+    bloque.style.display = 'none';
+    const inputs = bloque.querySelectorAll('input[type="number"]');
+    inputs.forEach(i => { i.value = 0; });
+  }
+}
+
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function recalcularPagos() {
+  const descuento = parseFloat(document.getElementById('descuento').value || 0);
+  const gestoria = parseFloat(document.getElementById('gestoria').value || 0);
+  const totalUnidad = precioLista ? precioLista - descuento + gestoria : 0;
+
+  const anticipo = document.getElementById('chkAnticipo').checked ? parseFloat(document.getElementById('anticipo').value || 0) : 0;
+  const efectivo = document.getElementById('chkEfectivo').checked ? parseFloat(document.getElementById('efectivo').value || 0) : 0;
+  const usado = document.getElementById('chkUsado').checked ? parseFloat(document.getElementById('precioToma').value || 0) : 0;
+  const credito = document.getElementById('chkCredito').checked ? parseFloat(document.getElementById('financiado').value || 0) : 0;
+
+  const totalPagado = anticipo + efectivo + usado + credito;
+  const saldo = totalUnidad - totalPagado;
+
+  const fmt = n => '$ ' + Math.round(n).toLocaleString('es-AR');
+
+  // Actualizar filas resumen
+  const showRow = (id, show, val, elId) => {
+    document.getElementById(id).style.display = show ? 'flex' : 'none';
+    if (elId) document.getElementById(elId).textContent = fmt(val);
+  };
+
+  showRow('rowAnticipo', document.getElementById('chkAnticipo').checked, anticipo, 'rAnticipo');
+  showRow('rowEfectivo', document.getElementById('chkEfectivo').checked, efectivo, 'rEfectivo');
+  showRow('rowUsado', document.getElementById('chkUsado').checked, usado, 'rUsado');
+  showRow('rowCredito', document.getElementById('chkCredito').checked, credito, 'rCredito');
+
+  document.getElementById('rTotalPagado').textContent = fmt(totalPagado);
+  document.getElementById('saldoPendiente').textContent = totalUnidad ? fmt(saldo) : '$ —';
+
+  // Colorear saldo
+  const saldoEl = document.getElementById('saldoPendiente');
+  const saldoBox = document.getElementById('saldoBox');
+  const btn = document.getElementById('btnFinalizar');
+
+  if (!totalUnidad) {
+    saldoEl.style.color = '#AAA';
+    saldoBox.style.background = '#F8F8F8';
+    btn.disabled = true;
+    btn.style.background = '#E0E0E0';
+    btn.style.color = '#AAA';
+  } else if (Math.round(saldo) === 0) {
+    saldoEl.style.color = '#16A34A';
+    saldoBox.style.background = '#F0FDF4';
+    btn.disabled = false;
+    btn.style.background = '#16A34A';
+    btn.style.color = 'white';
+  } else if (saldo < 0) {
+    saldoEl.style.color = '#F59E0B';
+    saldoBox.style.background = '#FFFBEB';
+    btn.disabled = true;
+    btn.style.background = '#E0E0E0';
+    btn.style.color = '#AAA';
+  } else {
+    saldoEl.style.color = '#C0272D';
+    saldoBox.style.background = '#FEF2F2';
+    btn.disabled = true;
+    btn.style.background = '#E0E0E0';
+    btn.style.color = '#AAA';
+  }
+}
+
+// ─── VALIDACIÓN ENVÍO ─────────────────────────────────
+function validarYEnviar(e) {
+  const descuento = parseFloat(document.getElementById('descuento').value || 0);
+  const gestoria = parseFloat(document.getElementById('gestoria').value || 0);
+  const totalUnidad = precioLista - descuento + gestoria;
+
+  const anticipo = document.getElementById('chkAnticipo').checked ? parseFloat(document.getElementById('anticipo').value || 0) : 0;
+  const efectivo = document.getElementById('chkEfectivo').checked ? parseFloat(document.getElementById('efectivo').value || 0) : 0;
+  const usado = document.getElementById('chkUsado').checked ? parseFloat(document.getElementById('precioToma').value || 0) : 0;
+  const credito = document.getElementById('chkCredito').checked ? parseFloat(document.getElementById('financiado').value || 0) : 0;
+
+  const saldo = totalUnidad - (anticipo + efectivo + usado + credito);
+
+  if (!document.getElementById('clienteIdInput').value) {
+    alert('Debe seleccionar un cliente para continuar.');
+    e.preventDefault();
+    return false;
+  }
+
+  if (Math.round(saldo) !== 0) {
+    e.preventDefault();
+    document.getElementById('saldoPendienteModal').textContent =
+      '$ ' + Math.round(saldo).toLocaleString('es-AR');
+    document.getElementById('modalSaldo').style.display = 'flex';
+    return false;
+  }
+
+  return true;
+}
+
+// ─── MODAL CLIENTE ────────────────────────────────────
+function abrirModal() {
+  document.getElementById('modalCliente').style.display = 'flex';
+}
+function cerrarModal() {
+  document.getElementById('modalCliente').style.display = 'none';
+}
+function cerrarModalSaldo() {
+  document.getElementById('modalSaldo').style.display = 'none';
+}
+
+// Cerrar modales con Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    cerrarModal();
+    cerrarModalSaldo();
+  }
+});
+</script>
+
+{% endblock %}

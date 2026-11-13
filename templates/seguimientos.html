@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+
+{% block topbar_title %}Agenda Comercial{% endblock %}
+
+{% block topbar_actions %}
+<a href="/clientes" class="btn btn-secondary">
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+  Volver
+</a>
+<span style="font-size:12px; color:#888;">{{ hoy.strftime('%d/%m/%Y') }}</span>
+{% endblock %}
+
+{% block content %}
+<div style="display:grid; grid-template-columns:minmax(0, 1fr) 360px; gap:20px; align-items:start;">
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Agenda de seguimiento</span>
+        <span class="badge {{ 'badge-rojo' if seguimientos_atrasados else 'badge-gris' }}">{{ seguimientos_atrasados|length }} atrasados</span>
+      </div>
+      <div class="card-body" style="padding:0;">
+        {% for titulo, lista, clase in [('ATRASADOS', seguimientos_atrasados, 'badge-rojo'), ('HOY', seguimientos_hoy, 'badge-naranja'), ('PRÓXIMOS', seguimientos_proximos, 'badge-azul')] %}
+        <section style="padding:18px 22px; border-bottom:1px solid #F0F0F0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <strong style="font-family:'Rajdhani',sans-serif; letter-spacing:.06em;">{{ titulo }}</strong>
+            <span class="badge {{ clase }}">{{ lista|length }}</span>
+          </div>
+          {% for seguimiento in lista %}
+          <div style="display:flex; gap:12px; justify-content:space-between; align-items:center; padding:12px 0; border-top:1px solid #F5F5F5;">
+            <div style="min-width:0;">
+              <div style="font-weight:600;">{{ seguimiento.cliente.nombre }}</div>
+              <div style="font-size:12px; color:#777;">{{ seguimiento.tipo_contacto }}{% if seguimiento.resultado %} · {{ seguimiento.resultado }}{% endif %}</div>
+              {% if seguimiento.observaciones %}<div style="font-size:12px; color:#555; margin-top:4px;">{{ seguimiento.observaciones }}</div>{% endif %}
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+              {% if seguimiento.cliente.telefono or seguimiento.cliente.whatsapp %}
+              <a class="btn btn-sm" style="background:#22C55E; color:white;" target="_blank" href="https://wa.me/54{{ (seguimiento.cliente.whatsapp or seguimiento.cliente.telefono)|replace(' ','')|replace('-','')|replace('+','') }}">WhatsApp</a>
+              {% endif %}
+              <a class="btn btn-secondary btn-sm" href="/clientes/ver/{{ seguimiento.cliente.id }}">Ficha</a>
+              {% if session.get('rol') == 'admin' %}
+              <form method="POST" action="/seguimientos/{{ seguimiento.id }}/eliminar" onclick="return confirm('¿Eliminar este seguimiento? Esta acción no se puede deshacer.');">
+                <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+          {% else %}
+          <div style="color:#999; font-size:13px; padding:8px 0;">No hay seguimientos en esta sección.</div>
+          {% endfor %}
+        </section>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {% if session.get('rol') == 'admin' %}
+  <div class="card" style="position:sticky; top:80px;">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Nuevo seguimiento</span>
+    </div>
+    <div class="card-body">
+      <form method="POST" style="display:grid; gap:12px;">
+        <div>
+          <label class="input-label">Cliente *</label>
+          <select name="cliente_id" class="input-field" required>
+            <option value="">Seleccionar cliente...</option>
+            {% for cliente in clientes %}<option value="{{ cliente.id }}">#{{ cliente.interno }} - {{ cliente.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div><label class="input-label">Fecha *</label><input type="date" name="fecha" class="input-field" value="{{ hoy.isoformat() }}" required></div>
+          <div><label class="input-label">Próximo contacto</label><input type="date" name="proximo_contacto" class="input-field"></div>
+        </div>
+        <div>
+          <label class="input-label">Tipo de contacto</label>
+          <select name="tipo_contacto" class="input-field">
+            {% for tipo in ['WhatsApp', 'Llamada', 'Email', 'Visita', 'Videollamada', 'Otro'] %}<option>{{ tipo }}</option>{% endfor %}
+          </select>
+        </div>
+        <div><label class="input-label">Resultado</label><input name="resultado" class="input-field" placeholder="Ej.: pidió cotización"></div>
+        <div><label class="input-label">Observaciones</label><textarea name="observaciones" class="input-field" rows="4" placeholder="Detalle de la conversación..."></textarea></div>
+        <button type="submit" class="btn btn-primary" style="justify-content:center;">Registrar seguimiento</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+@media (max-width:900px) {
+  .page-area > div[style*="grid-template-columns:minmax"] { grid-template-columns:1fr !important; }
+  .page-area > div[style*="grid-template-columns:minmax"] .card[style*="sticky"] { position:static !important; }
+}
+</style>
+{% endblock %}

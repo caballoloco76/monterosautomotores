@@ -1,0 +1,333 @@
+{% extends "layout.html" %}
+
+{% block topbar_title %}CRM Clientes{% endblock %}
+
+{% block topbar_actions %}
+<a href="/seguimientos" class="btn btn-secondary">
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 15h2m2 0h2m-6 4h2m2 0h2"/></svg>
+  Seguimientos
+</a>
+<a href="/clientes-por-vendedor" class="btn btn-secondary">Clientes por vendedor</a>
+<a href="/informes-ventas-usuario" class="btn btn-secondary">Informes de ventas por usuario</a>
+{% if session.get('rol') == 'admin' %}
+<button onclick="document.getElementById('formPanel').classList.toggle('hidden')" class="btn btn-primary">
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+  Nuevo Cliente
+</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- DASHBOARD CRM -->
+<div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin-bottom:18px;">
+  <a href="/clientes" class="kpi-card azul" style="text-decoration:none; color:inherit; display:block;">
+    <div class="kpi-label">Clientes cargados</div>
+    <div class="kpi-value" style="color:#2563EB;">{{ total_clientes }}</div>
+    <div class="kpi-sub">{{ 'Ver todos los clientes' if session.get('rol') == 'admin' else 'Ver mis clientes' }}</div>
+  </a>
+  <a href="/clientes?segmento=atrasados" class="kpi-card rojo" style="text-decoration:none; color:inherit; display:block;">
+    <div class="kpi-label">Clientes atrasados</div>
+    <div class="kpi-value" style="color:#DC2626;">{{ cantidad_atrasados }}</div>
+    <div class="kpi-sub">Ver listado de atención</div>
+  </a>
+  <a href="/clientes?segmento=hoy" class="kpi-card verde" style="text-decoration:none; color:inherit; display:block;">
+    <div class="kpi-label">Clientes para hoy</div>
+    <div class="kpi-value" style="color:#16A34A;">{{ cantidad_hoy }}</div>
+    <div class="kpi-sub">Ver clientes y vendedor</div>
+  </a>
+  <a href="/clientes?segmento=proximos" class="kpi-card naranja" style="text-decoration:none; color:inherit; display:block;">
+    <div class="kpi-label">Próximos contactos</div>
+    <div class="kpi-value" style="color:#D97706;">{{ cantidad_proximos }}</div>
+    <div class="kpi-sub">Ver agenda futura</div>
+  </a>
+</div>
+
+{% if request.args.get('informe') == 'clientes' %}
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Clientes por vendedor</span>
+    <span style="font-size:12px; color:#888;">{{ clientes_por_vendedor|length }} vendedores con cartera</span>
+  </div>
+  <div class="card-body" style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px;">
+    {% for vendedor_id, vendedor, cantidad in clientes_por_vendedor %}
+    <a href="{{ '/clientes?sin_asignar=1' if vendedor_id is none else '/clientes?vendedor_id=' ~ vendedor_id }}" style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; background:#F8F8F8; border-left:3px solid #C0272D; border-radius:6px; text-decoration:none; color:inherit;">
+      <span style="font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ vendedor }}</span>
+      <span class="badge badge-azul">{{ cantidad }}</span>
+    </a>
+    {% else %}
+    <div style="color:#999; font-size:13px;">Todavía no hay clientes cargados.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<style>
+@media (max-width:900px) {
+  .page-area > div[style*="repeat(4"] { grid-template-columns:repeat(2, minmax(0, 1fr)) !important; }
+  .card > .card-body[style*="repeat(4"] { grid-template-columns:repeat(2, minmax(0, 1fr)) !important; }
+}
+@media (max-width:560px) {
+  .page-area > div[style*="repeat(4"] { grid-template-columns:1fr !important; }
+  .card > .card-body[style*="repeat(4"] { grid-template-columns:1fr !important; }
+}
+</style>
+
+<!-- ALERTAS -->
+{% if alertas %}
+<div class="alerta-box danger" style="margin-bottom:20px; display:flex; align-items:flex-start; gap:12px;">
+  <div style="font-size:20px;">🔔</div>
+  <div>
+    <div style="font-weight:700; color:#991B1B; margin-bottom:6px;">Contactar hoy ({{ alertas|length }})</div>
+    {% for a in alertas %}
+    <div style="display:flex; align-items:center; gap:10px; margin-top:4px;">
+      <span style="font-weight:600;">{{ a.nombre }}</span>
+      <span style="color:#888;">{{ a.telefono }}</span>
+      <span style="color:#666; font-size:12px;">{{ a.interes }}</span>
+      <a href="https://wa.me/54{{ a.telefono }}" target="_blank"
+         style="background:#22C55E; color:white; padding:3px 10px; border-radius:4px; font-size:12px; text-decoration:none; font-weight:600;">WA</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if request.args.get('informe') == 'ventas' %}
+<!-- INFORME DE VENTAS -->
+<div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin-bottom:20px;">
+  <div class="kpi-card azul">
+    <div class="kpi-label">Operaciones</div>
+    <div class="kpi-value" style="color:#2563EB;">{{ informe_ventas.cantidad }}</div>
+    <div class="kpi-sub">Total registrado</div>
+  </div>
+  <div class="kpi-card verde">
+    <div class="kpi-label">Facturación</div>
+    <div class="kpi-value" style="color:#16A34A;">$ {{ "{:,.0f}".format(informe_ventas.facturacion) }}</div>
+    <div class="kpi-sub">Importe acumulado</div>
+  </div>
+  <div class="kpi-card azul">
+    <div class="kpi-label">Finalizadas</div>
+    <div class="kpi-value" style="color:#2563EB;">{{ informe_ventas.finalizadas }}</div>
+    <div class="kpi-sub">Ventas concretadas</div>
+  </div>
+  <div class="kpi-card naranja">
+    <div class="kpi-label">Reservas</div>
+    <div class="kpi-value" style="color:#D97706;">{{ informe_ventas.reservas }}</div>
+    <div class="kpi-sub">Operaciones abiertas</div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Informe de ventas por usuario</span>
+    <span style="font-size:12px; color:#888;">{{ 'Gestión general' if session.get('rol') == 'admin' else 'Mis operaciones' }}</span>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="tabla">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Operaciones</th>
+          <th>Finalizadas</th>
+          <th>Reservas</th>
+          <th style="text-align:right;">Facturación</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for vendedor_id, vendedor, resumen in ventas_por_vendedor %}
+        <tr>
+          <td style="font-weight:600;">{{ vendedor }}</td>
+          <td><span class="badge badge-azul">{{ resumen.cantidad }}</span></td>
+          <td><span class="badge badge-verde">{{ resumen.finalizadas }}</span></td>
+          <td><span class="badge badge-naranja">{{ resumen.reservas }}</span></td>
+          <td style="text-align:right; color:#16A34A; font-weight:700;">$ {{ "{:,.0f}".format(resumen.facturacion) }}</td>
+          <td>
+            {% if session.get('rol') == 'admin' and vendedor_id %}
+            <a href="/historial?vendedor={{ resumen.username }}" class="btn btn-secondary btn-sm">Ver informe</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center; color:#999; padding:24px;">No hay ventas registradas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- FORMULARIO NUEVO CLIENTE -->
+<div id="formPanel" class="card hidden" style="margin-bottom:24px;">
+  <div class="card-header">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Nuevo Cliente</span>
+    <button onclick="document.getElementById('formPanel').classList.add('hidden')" style="background:none;border:none;cursor:pointer;color:#888;font-size:20px;">✕</button>
+  </div>
+  <div class="card-body">
+    <form method="POST" style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;">
+
+      <div>
+        <label class="input-label">Nombre y Apellido</label>
+        <input name="nombre" class="input-field" required>
+      </div>
+      <div>
+        <label class="input-label">DNI</label>
+        <input name="dni" class="input-field" placeholder="Ej: 30123456">
+      </div>
+      <div>
+        <label class="input-label">Teléfono</label>
+        <input name="telefono" class="input-field">
+      </div>
+
+      <div>
+        <label class="input-label">Email</label>
+        <input name="email" type="email" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Origen del dato</label>
+        <select name="origen_cliente" class="input-field" required>
+          <option value="">Seleccionar...</option>
+          <option>Facebook</option>
+          <option>Instagram</option>
+          <option>TikTok</option>
+          <option>Referido</option>
+          <option>Propio</option>
+          <option>Mercado Libre</option>
+          <option>Proactivación</option>
+        </select>
+      </div>
+      <div>
+        <label class="input-label">Domicilio</label>
+        <input name="domicilio" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Localidad</label>
+        <input name="localidad" class="input-field">
+      </div>
+
+      <div>
+        <label class="input-label">Provincia</label>
+        <select name="provincia" class="input-field">
+          <option value="">Seleccionar...</option>
+          {% for p in ['Buenos Aires','CABA','Catamarca','Chaco','Chubut','Córdoba','Corrientes','Entre Ríos','Formosa','Jujuy','La Pampa','La Rioja','Mendoza','Misiones','Neuquén','Río Negro','Salta','San Juan','San Luis','Santa Cruz','Santa Fe','Santiago del Estero','Tierra del Fuego','Tucumán'] %}
+          <option>{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="input-label">¿Tiene usado?</label>
+        <select name="usado" class="input-field">
+          <option value="No">No</option>
+          <option value="Si">Sí</option>
+        </select>
+      </div>
+      <div>
+        <label class="input-label">Detalle del usado</label>
+        <input name="detalle_usado" placeholder="Marca, modelo, año..." class="input-field">
+      </div>
+
+      <div>
+        <label class="input-label">Vehículo de interés</label>
+        <input name="interes" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Próximo contacto</label>
+        <input type="date" name="proximo" class="input-field">
+      </div>
+      <div>
+        <label class="input-label">Descripción / Notas</label>
+        <input name="descripcion" class="input-field" placeholder="Detalles de la conversación...">
+      </div>
+
+      <div style="grid-column:span 3; display:flex; justify-content:flex-end; gap:10px; margin-top:4px;">
+        <button type="button" onclick="document.getElementById('formPanel').classList.add('hidden')" class="btn btn-secondary">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar Cliente</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- BUSCADOR -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-body" style="padding:14px 22px;">
+    <form method="GET" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <input name="buscar" placeholder="Buscar por nombre, DNI, teléfono o interés..."
+             value="{{ request.args.get('buscar','') }}"
+             class="input-field" style="max-width:420px;">
+      <select name="estado" class="input-field" style="max-width:190px;">
+        <option value="" {{ 'selected' if request.args.get('estado', '') == '' }}>Clientes en gestión</option>
+        <option value="COMPRA" {{ 'selected' if request.args.get('estado') == 'COMPRA' }}>Ya compraron</option>
+        <option value="NO COMPRA" {{ 'selected' if request.args.get('estado') == 'NO COMPRA' }}>No compraron</option>
+        <option value="TODOS" {{ 'selected' if request.args.get('estado') == 'TODOS' }}>Todos los clientes</option>
+      </select>
+      <button class="btn btn-primary">Buscar</button>
+      {% if request.args.get('buscar') or request.args.get('estado') %}
+      <a href="/clientes" class="btn btn-secondary">Limpiar</a>
+      {% endif %}
+      <span style="margin-left:auto; font-size:13px; color:#888;">{{ clientes|length }} clientes</span>
+    </form>
+  </div>
+</div>
+
+
+<!-- LISTADO CLIENTES EN TABLA -->
+<div class="card" style="overflow-x:auto;">
+  <table class="tabla">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Nombre</th>
+        <th>DNI</th>
+        <th>Teléfono</th>
+        <th>Email</th>
+        <th>Localidad</th>
+        <th>Provincia</th>
+        <th>Interés</th>
+        <th>Vehículo comprado</th>
+        <th>Cargado por</th>
+        <th>Vendedor</th>
+        <th>Próx. Atención</th>
+        <th>Notas</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in clientes %}
+      <tr style="cursor:pointer;" onclick="window.location='/clientes/ver/{{ c.id }}'">
+        <td><span style="color:#C0272D; font-size:14px; font-family:'Rajdhani',sans-serif; font-weight:700;">#{{ c.interno }}</span></td>
+        <td>{{ c.nombre }}</td>
+        <td>{{ c.dni or '-' }}</td>
+        <td>{{ c.telefono or '-' }}</td>
+        <td>{{ c.email or '-' }}</td>
+        <td>{{ c.localidad or '-' }}</td>
+        <td>{{ c.provincia or '-' }}</td>
+        <td>{{ c.interes or '-' }}</td>
+        <td>{% if c.vehiculo_comprado %}{{ c.vehiculo_comprado.marca }} {{ c.vehiculo_comprado.version }} · {{ c.vehiculo_comprado.dominio }}{% else %}-{% endif %}</td>
+        <td>{{ c.cargado_por.nombre_completo or c.cargado_por.username if c.cargado_por else 'Sin registro' }}</td>
+        <td>{{ c.vendedor.nombre_completo or c.vendedor.username if c.vendedor else 'Sin asignar' }}</td>
+        <td>{{ c.proximo_contacto or 'Sin fecha' }}</td>
+        <td style="max-width:180px; white-space:pre-line;">{{ c.descripcion[:80] if c.descripcion else '-' }}{% if c.descripcion and c.descripcion|length > 80 %}...{% endif %}</td>
+        <td><span class="badge {{ 'badge-verde' if c.estado == 'Nuevo' else ('badge-naranja' if c.estado == 'COMPRA' else 'badge-azul') }}">{{ c.estado }}</span></td>
+        <td style="min-width:120px;">
+          <a href="/clientes/ver/{{ c.id }}" class="btn btn-primary btn-sm">Ver</a>
+          {% if session.get('rol') == 'admin' %}
+          <form method="POST" action="/clientes/eliminar/{{ c.id }}" style="display:inline;" onclick="event.stopPropagation(); return confirm('¿Eliminar este cliente y sus datos CRM? Esta acción no se puede deshacer.');">
+            <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="15" style="text-align:center; color:#AAA; padding:40px 0; font-size:16px;">
+          <div style="font-size:40px; margin-bottom:12px;">👥</div>
+          No hay clientes registrados
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

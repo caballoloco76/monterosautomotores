@@ -1,0 +1,197 @@
+{% extends "layout.html" %}
+
+{% block topbar_title %}Registrar Nueva Venta{% endblock %}
+
+{% block topbar_actions %}
+<a href="/historial" class="btn btn-secondary">Ver historial</a>
+{% endblock %}
+
+{% block content %}
+
+<div style="display:grid; grid-template-columns:1fr 360px; gap:20px; align-items:start;">
+
+  <!-- FORMULARIO -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Datos de la Operación</span>
+    </div>
+    <div class="card-body">
+      <form method="POST" id="formVenta" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div style="grid-column:span 2;">
+          <label class="input-label">N° de Operación</label>
+          <input name="numero_operacion" type="text" class="input-field" required placeholder="Ingrese número único de operación">
+        </div>
+
+        <div style="grid-column:span 2;">
+          <label class="input-label">Cliente</label>
+          <select name="cliente" class="input-field" required onchange="actualizarResumen()">
+            <option value="">Seleccionar cliente...</option>
+            {% for c in clientes %}
+            <option value="{{ c.id }}">#{{ c.interno }} - {{ c.nombre }} ({{ c.telefono }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="grid-column:span 2;">
+          <label class="input-label">Vehículo</label>
+          <select name="vehiculo" id="selectVehiculo" class="input-field" required onchange="actualizarPrecio()">
+            <option value="">Seleccionar vehículo...</option>
+            {% for v in vehiculos %}
+            <option value="{{ v.id }}" data-precio="{{ v.precio_venta }}" data-desc="{{ v.marca }} {{ v.version }} ({{ v.año }}) — {{ v.dominio }}">
+              #{{ v.interno }} — {{ v.marca }} {{ v.version }} {{ v.año }} · {{ v.dominio }} · $ {{ "{:,.0f}".format(v.precio_venta) }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="input-label">Tipo de Operación</label>
+          <select name="tipo" id="tipo" class="input-field" required onchange="toggleFinanciado(); actualizarResumen()">
+            <option value="">Seleccionar...</option>
+            <option value="contado">Contado</option>
+            <option value="financiado">Financiado</option>
+          </select>
+        </div>
+
+        <div></div>
+
+        <div id="wrap_entrega" class="hidden">
+          <label class="input-label">Entrega ($)</label>
+          <input name="entrega" id="entrega" type="number" placeholder="0" class="input-field" oninput="actualizarResumen()">
+        </div>
+
+        <div id="wrap_financiado" class="hidden">
+          <label class="input-label">Monto Financiado ($)</label>
+          <input name="financiado" id="financiado" type="number" placeholder="0" class="input-field" oninput="actualizarResumen()">
+        </div>
+
+        <div id="wrap_banco" class="hidden" style="grid-column:span 2;">
+          <label class="input-label">Banco / Financiera</label>
+          <input name="banco" class="input-field" placeholder="Banco Nación, ICBC, Santander...">
+        </div>
+
+        <!-- TOMA USADO -->
+        <div style="grid-column:span 2;">
+          <div style="display:flex; align-items:center; gap:10px; padding:14px; background:#F8F8F8; border-radius:8px; border:1.5px solid #E0E0E0;">
+            <input type="checkbox" id="usado" name="toma_usado" onchange="toggleUsado(); actualizarResumen()"
+                   style="width:18px; height:18px; accent-color:#C0272D; cursor:pointer;">
+            <label for="usado" style="font-size:14px; font-weight:500; cursor:pointer;">
+              Recibe vehículo usado en parte de pago
+            </label>
+          </div>
+        </div>
+
+        <div id="wrap_precio_toma" class="hidden" style="grid-column:span 2;">
+          <label class="input-label">Precio de Toma del Usado ($)</label>
+          <input name="precio_toma" id="precio_toma" type="number" placeholder="0" class="input-field" oninput="actualizarResumen()">
+        </div>
+
+        <div style="grid-column:span 2;">
+          <label class="input-label">Seña ($)</label>
+          <input name="senia" type="number" min="1" step="any" class="input-field" required placeholder="Ingrese monto de seña">
+        </div>
+
+        <div style="grid-column:span 2; margin-top:4px;">
+          <button type="submit" class="btn btn-primary" style="width:100%; padding:13px; font-size:16px;">
+            ✅ Registrar Venta
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- RESUMEN -->
+  <div>
+    <div class="card" style="position:sticky; top:80px;">
+      <div class="card-header" style="background:#1A1A1A; border-radius:12px 12px 0 0;">
+        <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700; color:white;">
+          Resumen de Operación
+        </span>
+      </div>
+      <div class="card-body">
+
+        <div id="vehiculoDesc" style="font-size:13px; color:#888; margin-bottom:16px; min-height:20px;">
+          Seleccioná un vehículo
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#666; font-size:13px;">Precio venta</span>
+            <span id="rPrecio" style="font-weight:700; font-size:15px; font-family:'Rajdhani',sans-serif;">$ —</span>
+          </div>
+          <div id="rowEntrega" class="hidden" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#666; font-size:13px;">Entrega</span>
+            <span id="rEntrega" style="font-weight:600; color:#16A34A; font-size:14px;">$ —</span>
+          </div>
+          <div id="rowFinanciado" class="hidden" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#666; font-size:13px;">Financiado</span>
+            <span id="rFinanciado" style="font-weight:600; color:#3B82F6; font-size:14px;">$ —</span>
+          </div>
+          <div id="rowToma" class="hidden" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#666; font-size:13px;">Toma usado</span>
+            <span id="rToma" style="font-weight:600; color:#F59E0B; font-size:14px;">$ —</span>
+          </div>
+          <div style="border-top:2px solid #1A1A1A; padding-top:10px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700; font-size:14px;">Saldo a cobrar</span>
+            <span id="rSaldo" style="font-family:'Rajdhani',sans-serif; font-size:22px; font-weight:700; color:#C0272D;">$ —</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function fmt(n) {
+  return '$ ' + Number(n || 0).toLocaleString('es-AR', {maximumFractionDigits:0});
+}
+
+function toggleFinanciado() {
+  const tipo = document.getElementById('tipo').value;
+  const fin = tipo === 'financiado';
+  ['wrap_entrega','wrap_financiado','wrap_banco'].forEach(id => {
+    document.getElementById(id).classList.toggle('hidden', !fin);
+  });
+  document.getElementById('rowEntrega').classList.toggle('hidden', !fin);
+  document.getElementById('rowFinanciado').classList.toggle('hidden', !fin);
+}
+
+function toggleUsado() {
+  const checked = document.getElementById('usado').checked;
+  document.getElementById('wrap_precio_toma').classList.toggle('hidden', !checked);
+  document.getElementById('rowToma').classList.toggle('hidden', !checked);
+}
+
+function actualizarPrecio() {
+  const sel = document.getElementById('selectVehiculo');
+  const opt = sel.options[sel.selectedIndex];
+  const precio = parseFloat(opt?.dataset?.precio || 0);
+  const desc = opt?.dataset?.desc || 'Seleccioná un vehículo';
+  document.getElementById('vehiculoDesc').textContent = desc;
+  document.getElementById('rPrecio').textContent = precio ? fmt(precio) : '$ —';
+  actualizarResumen();
+}
+
+function actualizarResumen() {
+  const sel = document.getElementById('selectVehiculo');
+  const opt = sel.options[sel.selectedIndex];
+  const precio = parseFloat(opt?.dataset?.precio || 0);
+
+  const entrega = parseFloat(document.getElementById('entrega').value || 0);
+  const financiado = parseFloat(document.getElementById('financiado').value || 0);
+  const toma = parseFloat(document.getElementById('precio_toma').value || 0);
+  const usadoChecked = document.getElementById('usado').checked;
+
+  document.getElementById('rEntrega').textContent = fmt(entrega);
+  document.getElementById('rFinanciado').textContent = fmt(financiado);
+  document.getElementById('rToma').textContent = fmt(toma);
+
+  const saldo = precio - (usadoChecked ? toma : 0);
+  document.getElementById('rSaldo').textContent = precio ? fmt(saldo) : '$ —';
+}
+</script>
+
+{% endblock %}

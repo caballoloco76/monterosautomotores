@@ -1,0 +1,40 @@
+== MONTEROS AUTOMOTORES — SISTEMA DE GESTIÓN ==
+
+INSTALACIÓN:
+1. pip install -r requirements.txt
+2. python app.py
+3. Abrir http://localhost:5000
+
+PRIMER INICIO:
+  No hay una contraseña predeterminada. Al crear la cuenta admin por primera vez,
+  la aplicación genera una contraseña aleatoria y la muestra en la consola.
+  Guardala en un lugar seguro; solo se muestra durante ese primer inicio.
+  También podés definir MONTEROS_ADMIN_PASSWORD antes de iniciar la aplicación.
+
+CLAVE DE SESIÓN:
+  La aplicación genera una clave aleatoria al iniciar. Sin MONTEROS_SECRET_KEY,
+  las sesiones activas vencen al reiniciar. En instalaciones estables, configurá
+  MONTEROS_SECRET_KEY como variable de entorno con un valor aleatorio y privado.
+
+PRUEBAS:
+  Ejecutar desde esta carpeta: python -m pytest -q test_ventas_operations.py test_gastos.py
+  Las pruebas usan una base temporal y no modifican instance\database.db.
+
+ESTRUCTURA:
+  app.py          → servidor Flask principal
+  models.py       → modelos de base de datos
+  database.py     → configuración SQLite
+  templates/      → todas las páginas HTML
+  static/         → logo e imágenes
+
+FUNCIONALIDADES:
+  ✅ Dashboard gerencial con gráficos
+  ✅ Gestión de vehículos (alta, editar, eliminar, filtros)
+  ✅ CRM Clientes (alta, editar, eliminar, búsqueda, alertas)
+  ✅ Lavadero (unidad y datos del vehículo por patente; control de tiempos, caja independiente y reportes PDF de ingresos diarios, semanales y mensuales; auto: $15.000/$18.000/$25.000; camioneta: $20.000/$25.000/$30.000; moto: $7.000/$14.000/$18.000 según cilindrada)
+  ✅ Agenda comercial para clientes del lavadero interesados en vender su vehículo
+  ✅ Registro de ventas con resumen en tiempo real
+  ✅ Historial de ventas con filtros y paginación
+  ✅ Lista de precios con impresión/PDF
+  ✅ Gestión de usuarios y roles (admin/vendedor)
+  ✅ WhatsApp directo desde el CRM

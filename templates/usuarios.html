@@ -1,0 +1,113 @@
+{% extends "layout.html" %}
+
+{% block topbar_title %}Gestión de Usuarios{% endblock %}
+
+{% block content %}
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;">
+
+  <!-- CREAR USUARIO -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Nuevo Usuario</span>
+    </div>
+    <div class="card-body">
+      <form method="POST" style="display:flex; flex-direction:column; gap:14px;">
+        <input type="hidden" name="accion" value="crear">
+
+        <div>
+          <label class="input-label">Nombre Completo</label>
+          <input name="nombre_completo" class="input-field" required>
+        </div>
+        <div>
+          <label class="input-label">Teléfono / WhatsApp</label>
+          <input name="telefono" class="input-field" placeholder="Ej: +54 9 381 555 1234">
+        </div>
+        <div>
+          <label class="input-label">Usuario (login)</label>
+          <input name="username" class="input-field" required autocomplete="off">
+        </div>
+        <div>
+          <label class="input-label">Contraseña</label>
+          <input name="password" type="password" class="input-field" required autocomplete="new-password">
+        </div>
+        <div>
+          <label class="input-label">Rol</label>
+          <select name="rol" class="input-field">
+            <option value="vendedor">Vendedor</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Crear Usuario</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- LISTA DE USUARIOS -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Usuarios del Sistema</span>
+    </div>
+    <div>
+      {% for u in usuarios %}
+      <div style="padding:16px 20px; border-bottom:1px solid #F0F0F0; display:flex; align-items:center; gap:14px;">
+
+        <div style="width:40px; height:40px; background:{{ '#C0272D' if u.rol == 'admin' else '#1A1A1A' }}; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:700; flex-shrink:0;">
+          {{ (u.nombre_completo or u.username)[0].upper() }}
+        </div>
+
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:14px;">{{ u.nombre_completo or u.username }}</div>
+          <div style="font-size:12px; color:#999;">@{{ u.username }}</div>
+          <div style="font-size:12px; color:#666;">{{ u.telefono or 'Sin teléfono cargado' }}</div>
+        </div>
+
+        <span class="badge {{ 'badge-rojo' if u.rol == 'admin' else 'badge-azul' }}">{{ u.rol }}</span>
+
+        <!-- Cambiar contraseña -->
+        <button onclick="document.getElementById('pwForm{{ u.id }}').classList.toggle('hidden')"
+                class="btn btn-secondary btn-sm">🔑</button>
+
+        <button onclick="document.getElementById('phoneForm{{ u.id }}').classList.toggle('hidden')"
+          class="btn btn-secondary btn-sm">Tel.</button>
+
+        <!-- Eliminar (no admin) -->
+        {% if u.username != 'admin' %}
+        <form method="POST" onsubmit="return confirm('¿Eliminar usuario {{ u.username }}?')">
+          <input type="hidden" name="accion" value="eliminar">
+          <input type="hidden" name="user_id" value="{{ u.id }}">
+          <button type="submit" class="btn btn-danger btn-sm">✕</button>
+        </form>
+        {% endif %}
+
+      </div>
+
+      <div id="phoneForm{{ u.id }}" class="hidden" style="padding:12px 20px; background:#F8F8F8; border-bottom:1px solid #F0F0F0;">
+        <form method="POST" style="display:flex; gap:10px; align-items:center;">
+          <input type="hidden" name="accion" value="actualizar_telefono">
+          <input type="hidden" name="user_id" value="{{ u.id }}">
+          <input name="telefono" value="{{ u.telefono or '' }}" placeholder="Teléfono / WhatsApp" class="input-field" style="flex:1;">
+          <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+          <button type="button" onclick="document.getElementById('phoneForm{{ u.id }}').classList.add('hidden')" class="btn btn-secondary btn-sm">Cancelar</button>
+        </form>
+      </div>
+
+      <!-- Form cambiar contraseña (oculto) -->
+      <div id="pwForm{{ u.id }}" class="hidden" style="padding:12px 20px; background:#F8F8F8; border-bottom:1px solid #F0F0F0;">
+        <form method="POST" style="display:flex; gap:10px; align-items:center;">
+          <input type="hidden" name="accion" value="cambiar_password">
+          <input type="hidden" name="user_id" value="{{ u.id }}">
+          <input name="nueva_password" type="password" placeholder="Nueva contraseña" class="input-field" style="flex:1;" required>
+          <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+          <button type="button" onclick="document.getElementById('pwForm{{ u.id }}').classList.add('hidden')" class="btn btn-secondary btn-sm">Cancelar</button>
+        </form>
+      </div>
+
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

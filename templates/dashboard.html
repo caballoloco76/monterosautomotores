@@ -1,0 +1,209 @@
+{% extends "layout.html" %}
+
+{% block topbar_title %}{{ 'Dashboard Gerencial' if es_admin else 'Mi Gestión Comercial' }}{% endblock %}
+
+{% block topbar_actions %}
+<span style="font-size:12px; color:#888;">
+  Hoy: {{ now.strftime('%d/%m/%Y') if now else '' }}
+</span>
+{% endblock %}
+
+{% block content %}
+
+<!-- KPIs -->
+<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px;">
+
+  <div class="kpi-card verde">
+    <div class="kpi-label">Facturación Total</div>
+    <div class="kpi-value" style="color:#16A34A;">$ {{ "{:,.0f}".format(total_facturacion) }}</div>
+    <div class="kpi-sub">{{ total_ventas }} operaciones cerradas</div>
+  </div>
+
+  <div class="kpi-card rojo">
+    <div class="kpi-label">Ticket Promedio</div>
+    <div class="kpi-value">$ {{ "{:,.0f}".format(ticket_promedio) }}</div>
+    <div class="kpi-sub">Por operación</div>
+  </div>
+
+  <div class="kpi-card azul">
+    <div class="kpi-label">{{ 'Stock Disponible' if es_admin else 'Ventas Finalizadas' }}</div>
+    <div class="kpi-value" style="color:#2563EB;">{{ disponibles if es_admin else vendidos }}</div>
+    <div class="kpi-sub">{{ vendidos }} {{ 'vendidos en total' if es_admin else 'operaciones propias' }}</div>
+  </div>
+
+  <div class="kpi-card naranja">
+    <div class="kpi-label">CRM Clientes</div>
+    <div class="kpi-value" style="color:#D97706;">{{ total_clientes }}</div>
+    <div class="kpi-sub">{{ alertas|length }} contactos hoy</div>
+  </div>
+
+</div>
+
+<!-- GRÁFICOS -->
+<div style="display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:24px;">
+
+  <!-- Facturación por mes -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Facturación Mensual</span>
+    </div>
+    <div class="card-body">
+      <canvas id="chartMeses" height="100"></canvas>
+    </div>
+  </div>
+
+  <!-- Ventas por vendedor -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Ventas por Vendedor</span>
+    </div>
+    <div class="card-body">
+      <canvas id="chartVendedor" height="160"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- FILA INFERIOR -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+
+  <!-- ÚLTIMAS VENTAS -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">Últimas Operaciones</span>
+      {% if es_admin %}<a href="/ventas" class="btn btn-secondary btn-sm">Ver todas</a>{% endif %}
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Vehículo</th>
+            <th>Precio</th>
+            <th>Tipo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for venta, cliente, vehiculo, usuario in ultimas_ventas %}
+          <tr>
+            <td>{{ cliente.nombre }}</td>
+            <td style="font-weight:600;">{{ vehiculo.marca }} {{ vehiculo.version }}</td>
+            <td style="color:#16A34A; font-weight:600;">$ {{ "{:,.0f}".format(venta.precio) }}</td>
+            <td>
+              <span class="badge {{ 'badge-verde' if venta.tipo_operacion == 'contado' else 'badge-azul' }}">
+                {{ venta.tipo_operacion }}
+              </span>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" style="text-align:center; color:#999; padding:24px;">Sin ventas registradas</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ALERTAS CRM -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">
+        🔔 Contactar Hoy
+      </span>
+      <span class="badge {{ 'badge-rojo' if alertas else 'badge-gris' }}">
+        {{ alertas|length }}
+      </span>
+    </div>
+    <div class="card-body">
+      {% if alertas %}
+        {% for c in alertas %}
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #F0F0F0;">
+          <div>
+            <div style="font-weight:600; font-size:14px;">{{ c.nombre }}</div>
+            <div style="font-size:12px; color:#888;">{{ c.interes }}</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <a href="https://wa.me/54{{ c.telefono }}" target="_blank"
+               style="background:#22C55E; color:white; padding:5px 12px; border-radius:5px; font-size:12px; text-decoration:none; font-weight:600;">
+              WhatsApp
+            </a>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="text-align:center; padding:40px 0; color:#BBB;">
+          <div style="font-size:32px; margin-bottom:8px;">✅</div>
+          <div style="font-size:14px;">Sin contactos pendientes para hoy</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- SCRIPTS CHART -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const colRojo = '#C0272D';
+const colGris = '#E8E8E8';
+
+// Chart facturación por mes
+new Chart(document.getElementById('chartMeses'), {
+  type: 'bar',
+  data: {
+    labels: {{ meses | tojson }},
+    datasets: [{
+      label: 'Facturación $',
+      data: {{ facturacion_mes | tojson }},
+      backgroundColor: colRojo,
+      borderRadius: 5,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => '$ ' + ctx.raw.toLocaleString('es-AR')
+        }
+      }
+    },
+    scales: {
+      y: {
+        ticks: {
+          callback: v => '$ ' + (v/1000).toFixed(0) + 'k'
+        },
+        grid: { color: '#F0F0F0' }
+      },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// Chart vendedores (doughnut)
+new Chart(document.getElementById('chartVendedor'), {
+  type: 'doughnut',
+  data: {
+    labels: {{ vendedores | tojson }},
+    datasets: [{
+      data: {{ ventas_vendedor | tojson }},
+      backgroundColor: ['#C0272D','#1A1A1A','#888888','#E8E8E8','#F59E0B'],
+      borderWidth: 0,
+      hoverOffset: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { font: { size: 12 } }
+      }
+    },
+    cutout: '65%'
+  }
+});
+</script>
+
+{% endblock %}

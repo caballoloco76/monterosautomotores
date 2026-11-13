@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reporte de ingresos del lavadero</title>
+  <style>
+    @page { size: A4 landscape; margin: 16mm; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:#202124; background:#F2F3F5; font-family:Arial,sans-serif; font-size:14px; }
+    .report-page { max-width:1320px; margin:28px auto; padding:0 20px; }
+    .actions { display:flex; justify-content:flex-end; gap:10px; margin-bottom:14px; }
+    .button { display:inline-block; padding:10px 15px; border:0; border-radius:4px; background:#B4232D; color:#FFF; font-size:14px; font-weight:700; text-decoration:none; cursor:pointer; }
+    .button-secondary { background:#E4E5E7; color:#333; }
+    .report-sheet { padding:28px; border:1px solid #E1E3E6; background:#FFF; }
+    h1 { margin:0 0 5px; font-size:24px; }
+    .subtitle { margin:0 0 22px; color:#555; font-size:14px; }
+    .summary { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:16px; margin-bottom:20px; padding:14px; background:#F3F4F6; }
+    .summary span { display:grid; gap:5px; }
+    .summary strong { font-size:16px; }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; }
+    th { padding:9px 7px; background:#E9E9E9; text-align:left; }
+    td { padding:8px 7px; border-bottom:1px solid #DDD; }
+    .amount { text-align:right; white-space:nowrap; }
+    .empty { padding:20px; text-align:center; color:#666; }
+    .footer { margin-top:18px; color:#666; font-size:11px; }
+    @media (max-width:760px) {
+      .report-page { margin:16px auto; padding:0 10px; }
+      .report-sheet { padding:16px; }
+      .summary { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    }
+    @media print {
+      body { background:#FFF; font-size:10px; }
+      .report-page { max-width:none; margin:0; padding:0; }
+      .actions { display:none; }
+      .report-sheet { padding:0; border:0; }
+      .summary { grid-template-columns:repeat(4, minmax(0, 1fr)); }
+      .table-wrap { overflow:visible; }
+      tr { break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="report-page">
+    <div class="actions">
+      <a class="button button-secondary" href="{{ url_for('lavadero', vista='ingresos') }}">Volver al lavadero</a>
+      <button class="button" type="button" onclick="window.print()">Imprimir</button>
+    </div>
+    <section class="report-sheet">
+      <h1>Monteros Automotores · Lavadero</h1>
+      <p class="subtitle">Reporte de ingresos · {{ etiqueta_periodo }} · {{ rango_desde.strftime('%d/%m/%Y') }} al {{ rango_hasta.strftime('%d/%m/%Y') }}</p>
+      <div class="summary">
+        <span>Total cobrado<strong>$ {{ "{:,.2f}".format(total) }}</strong></span>
+        <span>Contado<strong>$ {{ "{:,.2f}".format(total_efectivo) }}</strong></span>
+        <span>Transferencias<strong>$ {{ "{:,.2f}".format(total_transferencias) }}</strong></span>
+        <span>Cantidad de cobros<strong>{{ cobros|length }}</strong></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha y hora</th><th>Patente</th><th>Cliente</th><th>Unidad</th>
+              <th>Servicio</th><th>Medio</th><th>Titular / banco o aplicación</th>
+              <th class="amount">Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cobro in cobros %}
+            <tr>
+              <td>{{ cobro.cobrado_en.strftime('%d/%m/%Y %H:%M') }}</td>
+              <td>{{ cobro.vehiculo.patente }}</td>
+              <td>{{ cobro.vehiculo.cliente.nombre if cobro.vehiculo.cliente else 'Cliente eliminado' }}</td>
+              <td>{{ cobro.unidad }}</td>
+              <td>{{ cobro.tipo }}</td>
+              <td>{{ 'Contado' if cobro.medio_cobro == 'Efectivo' else cobro.medio_cobro }}</td>
+              <td>
+                {% if cobro.medio_cobro == 'Transferencia' %}
+                {{ cobro.titular_transferencia }} · {{ cobro.app_transferencia }}
+                {% else %}—{% endif %}
+              </td>
+              <td class="amount">$ {{ "{:,.2f}".format(cobro.importe_final) }}</td>
+            </tr>
+            {% else %}
+            <tr><td class="empty" colspan="8">No hay ingresos registrados para este período.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="footer">Reporte generado el {{ generado_en.strftime('%d/%m/%Y %H:%M') }}.</p>
+    </section>
+  </main>
+</body>
+</html>

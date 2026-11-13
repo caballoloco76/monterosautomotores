@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+{% block topbar_title %}Editar Gasto{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:600px; margin:0 auto;">
+  <div class="card-header">
+    <span style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;">
+      Editando Gasto - {{ vehiculo.marca }} {{ vehiculo.version }}
+    </span>
+    <a href="/vehiculos/{{ vehiculo.id }}/gastos" class="btn btn-secondary btn-sm">← Volver</a>
+  </div>
+  <div class="card-body">
+    <form method="POST" style="display:grid; grid-template-columns:1fr; gap:14px;">
+      
+      <div>
+        <label class="input-label">Tipo de Gasto *</label>
+        <select name="tipo" class="input-field" required>
+          <option value="">-- Seleccionar --</option>
+          {% for tipo in ['Mecánica', 'Pintura', 'Limpieza', 'Patente', 'Gestoría de Ingreso', 'Otros'] %}
+          <option {{ 'selected' if gasto.tipo == tipo }}>{{ tipo }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="input-label">Monto $ *</label>
+        <input type="number" name="monto" step="0.01" value="{{ gasto.monto }}" class="input-field" required>
+      </div>
+
+      <div>
+        <label class="input-label">Descripción</label>
+        <textarea name="descripcion" class="input-field" style="resize:vertical; height:80px;">{{ gasto.descripcion or '' }}</textarea>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
+        <a href="/vehiculos/{{ vehiculo.id }}/gastos" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

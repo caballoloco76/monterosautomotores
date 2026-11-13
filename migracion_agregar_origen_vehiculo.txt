@@ -1,0 +1,4 @@
+# MIGRACIÓN MANUAL
+# Agregar columna origen a la tabla vehiculo en la base de datos.
+# Ejecutar en SQLite o el gestor correspondiente:
+# ALTER TABLE vehiculo ADD COLUMN origen VARCHAR(20) DEFAULT 'propio';
